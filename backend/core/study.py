@@ -5,10 +5,11 @@ chunks — no provider, no key, no network.
 """
 from __future__ import annotations
 
+import hashlib
 import re
 from collections import Counter
 
-from core.models import Chunk, Flashcard, Source, utcnow
+from core.models import Chunk, Flashcard, MindmapNode, Source, utcnow
 from core.search import stem, stemmed_words
 
 _STOPWORDS = frozenset(
@@ -137,25 +138,114 @@ def build_study_guide(notebook_name: str, sources: list[Source]) -> str:
     return "\n".join(lines).rstrip()
 
 
+def _mindmap_id(scope: str, *parts: str) -> str:
+    """Deterministic 12-hex node id (stable across calls, unique per scope)."""
+    digest = hashlib.sha256(scope.encode("utf-8"))
+    for part in parts:
+        digest.update(b"\x00")
+        digest.update(part.encode("utf-8"))
+    return digest.hexdigest()[:12]
+
+
+def _mindmap_term_citations(source: Source) -> dict[str, tuple[str, set[int]]]:
+    """Original spelling and actual pages, indexed once by each token's stem."""
+    citations: dict[str, tuple[str, set[int]]] = {}
+    for chunk in source.chunks:
+        for word in _SURFACE_TOKEN.findall(chunk.text):
+            # source_terms already returns stems. Stemming them a second time
+            # can change the term again (class -> clas -> cla).
+            key = stem(word)
+            if key not in citations:
+                citations[key] = (word, set())
+            pages = citations[key][1]
+            pages.update(chunk.pages)
+    return citations
+
+
 def build_mindmap(notebook_name: str, sources: list[Source]) -> dict:
-    """Notebook → sources → key-terms tree for the collapsible map UI."""
-    children = []
+    """Notebook → source branches → concept leaves, all source-cited.
+
+    Deterministic term-frequency work over the notebook's own chunks — no
+    provider, no key, no network. Every branch cites its source; every
+    concept leaf cites the source + pages where the concept occurs. Node
+    ids are stable hashes (root ← notebook name, branch ← source id,
+    leaf ← source id + term) so repeated calls return identical trees.
+    Returns a JSON-ready dict matching MindmapNode (`name`/`children`
+    kept for existing clients).
+    """
+    branches: list[MindmapNode] = []
     for source in sources:
-        leaves = []
+        branch_pages = sorted({page for chunk in source.chunks for page in chunk.pages})
+        citations = _mindmap_term_citations(source)
+        leaves: list[MindmapNode] = []
         for stem_term in source_terms(source):
-            surface = _display_for_source(stem_term, source)
-            if surface:
-                leaves.append({"name": surface})
-        children.append({"name": source.title, "children": leaves})
-    return {"name": notebook_name, "children": children}
+            citation = citations.get(stem_term)
+            if citation is None:
+                continue
+            surface, pages = citation
+            leaves.append(
+                MindmapNode(
+                    id=_mindmap_id("concept", source.id, stem_term),
+                    name=surface,
+                    children=[],
+                    source_id=source.id,
+                    pages=sorted(pages),
+                )
+            )
+        branches.append(
+            MindmapNode(
+                id=_mindmap_id("source", source.id),
+                name=source.title,
+                children=leaves,
+                source_id=source.id,
+                pages=branch_pages,
+            )
+        )
+    root = MindmapNode(
+        id=_mindmap_id("notebook-root", notebook_name),
+        name=notebook_name,
+        children=branches,
+        source_id=None,
+        pages=[],
+    )
+    return root.model_dump(mode="json")
 
 
-def mindmap_markdown(tree: dict) -> str:
-    lines = [f"# {tree['name']}", ""]
-    for branch in tree.get("children", []):
-        lines.append(f"- {branch['name']}")
+def _mindmap_dict(tree: dict | MindmapNode) -> dict:
+    if isinstance(tree, MindmapNode):
+        return tree.model_dump(mode="json")
+    return tree
+
+
+def _pages_label(pages: list[int]) -> str:
+    return f"p. {', '.join(str(p) for p in pages)}" if pages else ""
+
+
+def mindmap_markdown(tree: dict | MindmapNode) -> str:
+    data = _mindmap_dict(tree)
+    lines = [f"# {data['name']}", ""]
+    for branch in data.get("children", []):
+        label = f"- {branch['name']}"
+        cite = " ".join(
+            part
+            for part in (
+                f"[source {branch.get('source_id')}]" if branch.get("source_id") else "",
+                f"({_pages_label(branch.get('pages', []))})" if branch.get("pages") else "",
+            )
+            if part
+        )
+        lines.append(f"{label} {cite}".rstrip())
         for leaf in branch.get("children", []):
-            lines.append(f"  - {leaf['name']}")
+            leaf_line = f"  - {leaf['name']}"
+            leaf_cite = " ".join(
+                part
+                for part in (
+                    f"[source {leaf.get('source_id')}]" if leaf.get("source_id") else "",
+                    f"({_pages_label(leaf.get('pages', []))})" if leaf.get("pages") else "",
+                )
+                if part
+            )
+            lines.append(f"{leaf_line} {leaf_cite}".rstrip())
     return "\n".join(lines).rstrip() + "\n"
 
 

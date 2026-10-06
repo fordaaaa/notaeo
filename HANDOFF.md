@@ -22,6 +22,44 @@ Live state of the project. **Read this first** before doing anything.
 > same guarantees). Both carry frontend tests (`api.export.test.ts`,
 > `api.study-export.test.ts`); 401s clear the token and signal login.
 
+## Native study workspace features (2026-10-06)
+
+- Thinking orbs replace the small loading dots in startup, optional AI,
+  search and mind-map loading. Settings retains its three-second local AI
+  loading preview. Either system or app Reduce Motion pauses the timeline
+  and leaves static orbs; no sound was added.
+- Sources remember the device's newest/oldest/name/file-type sort choice
+  and show import dates. Timestamp comparisons use actual instants, including
+  fractional seconds and offsets; invalid dates sort last. Names use natural
+  ordering (Lecture 2 before Lecture 10), with stable ID tie breaks.
+- Backend search adds BM25-style term-frequency saturation and chunk-length
+  normalization while preserving exact AND, literal phrases, prefix fallback,
+  related aliases/typos, filters, citations and deterministic pagination.
+  The legacy scoring helper defaults remain compatible; no schema migration,
+  service, AI key or dependency is needed.
+- Native Mind map shows a connected notebook/source/concept graph with
+  scroll, zoom, collapse/expand, a readable Outline alternative, refresh,
+  source/page actions and authenticated Markdown export. Concepts are key
+  terms extracted from imported material, not inferred semantic connections.
+  The API retains `name`/`children` and adds typed stable IDs and source/page
+  citations. A one-pass token index avoids double stemming and fabricated
+  page references. Export headers use safe ASCII filenames while content
+  preserves non-English course names.
+- Verification: search ranking tests first 3 failed/5 passed, then 8 passed;
+  root citation-stemming and Unicode-export regressions each failed before
+  their fixes. New native sorting/orb/map API tests failed to compile before
+  implementation. Full backend: 404 passed; native: 42 passed. The signed
+  arm64 package builds. Actual Swift loopback calls verified recursive map
+  citations against source-page text and authenticated Markdown export.
+  Native preview inspection covered connected branches, sorting dates and
+  a concept click opening its correct source reader. Physical trackpad zoom,
+  large-course usability and the Save dialog's final file write remain manual
+  checks. New native controls are macOS-only; Windows ports remain follow-up.
+- OpenCode implemented the ranking pass and the initial cited-map backend/UI;
+  root completed map wiring, graph/zoom, cancellation, accessibility and export
+  corrections. Independent OpenCode reviewers approved both the search diff
+  and the final native/map diff before the separate feature commits.
+
 ## Native macOS course search and backend pagination (2026-10-06)
 
 - Native Search tab and Cmd+F support queries, exact phrases, supported

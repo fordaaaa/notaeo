@@ -12,7 +12,7 @@ from fastapi.responses import PlainTextResponse
 from api.deps import get_current_user, get_store, notebook_or_404, safe_id
 from api.sources import _summary
 from core import ingest, study as study_core
-from core.models import CardCreate, CardReview, CardSuggestion, CardUpdate, Flashcard, GlossaryEntry, QuizQuestion, User, utcnow
+from core.models import CardCreate, CardReview, CardSuggestion, CardUpdate, Flashcard, GlossaryEntry, MindmapNode, QuizQuestion, User, utcnow
 from core.store import Store, new_id
 
 
@@ -222,9 +222,9 @@ def register(app: FastAPI) -> None:
         )
         return {"source": _summary(source)}
 
-    @app.get("/api/notebooks/{notebook_id}/mindmap")
+    @app.get("/api/notebooks/{notebook_id}/mindmap", response_model=MindmapNode)
     def get_mindmap(notebook_id: str, user: User = Depends(get_current_user)):
-        """Notebook → sources → key-terms tree for the map UI."""
+        """Notebook → source branches → concept leaves, all source-cited."""
         notebook_id = safe_id(notebook_id, "notebook_id")
         store = get_store(app)
         notebook = notebook_or_404(store, user.id, notebook_id)
@@ -238,7 +238,7 @@ def register(app: FastAPI) -> None:
         notebook = notebook_or_404(store, user.id, notebook_id)
         store.mark_progress(user.id, "export")
         tree = study_core.build_mindmap(notebook.name, _study_sources(store, notebook_id))
-        filename = "".join(c if c.isalnum() else "-" for c in notebook.name).strip("-") or "mindmap"
+        filename = "".join(c if c.isascii() and c.isalnum() else "-" for c in notebook.name).strip("-") or "mindmap"
         return PlainTextResponse(
             study_core.mindmap_markdown(tree),
             media_type="text/markdown",

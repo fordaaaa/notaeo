@@ -53,6 +53,14 @@ struct NativeSearchRequest: Equatable, Sendable {
     var limit: Int = 10
 }
 
+struct NativeMindmapNode: Decodable, Identifiable, Equatable, Sendable {
+    let id: String
+    let name: String
+    let children: [NativeMindmapNode]
+    let sourceId: String?
+    let pages: [Int]
+}
+
 struct SourcePage: Codable, Equatable, Sendable {
     var number: Int
     var text: String

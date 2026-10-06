@@ -563,6 +563,25 @@ class QuizQuestion(BaseModel):
     chunk_seq: int = Field(default=0, ge=0)
 
 
+class MindmapNode(BaseModel):
+    """Source-cited keyless mindmap node (recursive).
+
+    Wire names are snake_case (`source_id`); existing clients using only
+    `name`/`children` keep working. Root has no `source_id`; source
+    branches cite their source; concept leaves cite the source + pages
+    where the concept occurs. IDs are deterministic (stable across calls).
+    """
+
+    id: str
+    name: str
+    children: list["MindmapNode"] = Field(default_factory=list)
+    source_id: str | None = None
+    pages: list[int] = Field(default_factory=list)
+
+
+MindmapNode.model_rebuild()
+
+
 class ExamGoal(BaseModel):
     title: str = Field(min_length=1, max_length=120)
     exam_date: date

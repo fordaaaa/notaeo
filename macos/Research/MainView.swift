@@ -21,7 +21,7 @@ struct MainView: View {
         NativeMotionPolicy(systemReduceMotion: systemReduceMotion, appReduceMotion: reduceMotion)
     }
 
-    enum Tab: String, CaseIterable { case sources = "Sources", search = "Search", coach = "Exam coach" }
+    enum Tab: String, CaseIterable { case sources = "Sources", search = "Search", mindmap = "Mind map", coach = "Exam coach" }
 
     private struct SourceOpenTarget {
         let sourceId: String
@@ -37,13 +37,13 @@ struct MainView: View {
                     HStack(alignment: .center, spacing: 20) {
                         VStack(alignment: .leading, spacing: 4) {
                             Text(nb.name).font(NativeType.title).lineLimit(1)
-                            Text(tab == .sources ? "Make room for what you're learning." : tab == .search ? "Find it, then read it in context." : "One focused session at a time.")
+                            Text(tab == .sources ? "Make room for what you're learning." : tab == .search ? "Find it, then read it in context." : tab == .mindmap ? "See how your course material connects." : "One focused session at a time.")
                                 .font(NativeType.caption).foregroundStyle(.secondary)
                         }
                         Spacer(minLength: 12)
                         Picker("Notebook view", selection: $tab) {
                             ForEach(Tab.allCases, id: \.self) { Text($0.rawValue).tag($0) }
-                        }.pickerStyle(.segmented).labelsHidden().frame(width: 310)
+                        }.pickerStyle(.segmented).labelsHidden().frame(width: 390)
                     }
                     .padding(.horizontal, 24).padding(.vertical, 18)
                     .background(NativePalette.surface)
@@ -59,6 +59,11 @@ struct MainView: View {
                                 tab = .sources
                             }.id(nb.id).transition(motion.transition)
                         case .coach: CoachView(notebook: nb).id(nb.id).transition(motion.transition)
+                        case .mindmap:
+                            MindMapView(notebook: nb) { sourceId, page in
+                                sourceTarget = SourceOpenTarget(sourceId: sourceId, page: page)
+                                tab = .sources
+                            }.id(nb.id).transition(motion.transition)
                         }
                     }
                     .animation(motion.animation, value: tab)
@@ -221,7 +226,7 @@ struct SourcesView: View {
                         if let detail {
                             VStack(alignment: .leading, spacing: 8) {
                                 if detail.id == initialSourceId, let initialPage {
-                                    Text("Opened from search · Page \(initialPage)")
+                                    Text("Source reference · Page \(initialPage)")
                                         .font(NativeType.caption).foregroundStyle(NativePalette.accent)
                                 }
                                 Text(detail.title).font(NativeType.title)

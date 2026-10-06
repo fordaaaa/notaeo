@@ -82,6 +82,7 @@ final class NotaeoAPI: NotebookSearching {
         var data: Data
         var status: Int
         var retryAfter: Int?
+        var contentDisposition: String? = nil
     }
 
     func send(path: String, method: String, query: [String: String] = [:], json: Encodable? = nil, contentType: String? = nil, body: Data? = nil) async throws -> RawResponse {
@@ -115,7 +116,8 @@ final class NotaeoAPI: NotebookSearching {
         guard let http = resp as? HTTPURLResponse else { throw APIError.network("bad response") }
         let retry = http.value(forHTTPHeaderField: "Retry-After").flatMap { Int($0.trimmingCharacters(in: .whitespaces)) }
         if (200...299).contains(http.statusCode) {
-            return RawResponse(data: data, status: http.statusCode, retryAfter: retry)
+            return RawResponse(data: data, status: http.statusCode, retryAfter: retry,
+                               contentDisposition: http.value(forHTTPHeaderField: "Content-Disposition"))
         }
         if http.statusCode == 401 { await onUnauthorized() }
         throw mapError(status: http.statusCode, data: data, retryAfter: retry)
@@ -200,6 +202,23 @@ final class NotaeoAPI: NotebookSearching {
 
     func exportNotebook(id: String) async throws -> Data {
         try await send(path: "api/notebooks/\(id)/export", method: "GET").data
+    }
+
+    // MARK: - Keyless mind maps
+
+    func getMindmap(notebookId: String) async throws -> NativeMindmapNode {
+        let response = try await send(path: "api/notebooks/\(notebookId)/mindmap", method: "GET")
+        return try decode(NativeMindmapNode.self, from: response.data)
+    }
+
+    func exportMindmap(notebookId: String) async throws -> (data: Data, filename: String) {
+        let response = try await send(path: "api/notebooks/\(notebookId)/mindmap/export", method: "GET")
+        // The sidecar emits a quoted ASCII filename. Ignore other disposition
+        // parameters and sanitize before handing the suggestion to NSSavePanel.
+        let disposition = response.contentDisposition ?? ""
+        let suggested = disposition.range(of: #"(?i)(?:^|;)\s*filename="([^"]*)""#, options: .regularExpression)
+            .map { String(disposition[$0]).components(separatedBy: "\"")[1] }
+        return (response.data, DownloadHandler.sanitizedExportFilename(suggested, fallback: "mindmap.md"))
     }
 
     // MARK: - Sources
