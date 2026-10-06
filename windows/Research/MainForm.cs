@@ -50,7 +50,7 @@ internal sealed class MainForm : Form
         _http = new HttpClient { Timeout = TimeSpan.FromSeconds(30) };
         _session = new SessionStore(_http);
         _sourcesPanel = new SourcesPanel(() => _session.MakeApi(), _preferences);
-        _coachPanel = new CoachPanel(() => _session.MakeApi());
+        _coachPanel = new CoachPanel(() => _session.MakeApi(), _preferences);
 
         var menu = new MenuStrip();
         var appMenu = new ToolStripMenuItem("&App");
@@ -644,7 +644,7 @@ internal sealed class MainForm : Form
 
     private void OpenSettings()
     {
-        using var dialog = new SettingsForm(_session);
+        using var dialog = new SettingsForm(_session, _preferences);
         dialog.ShowDialog(this);
         // Signing out inside Settings returns to the auth gate.
         if (!_session.IsLoggedIn && _mainSplit.Visible)

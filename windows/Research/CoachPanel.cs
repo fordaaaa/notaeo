@@ -6,6 +6,7 @@ namespace Notaeo;
 internal sealed class CoachPanel : UserControl
 {
     private readonly Func<NotaeoApi?> _apiFactory;
+    private readonly ThinkingOrbControl _aiActivity;
 
     private Notebook? _notebook;
     private int _epoch;
@@ -56,9 +57,10 @@ internal sealed class CoachPanel : UserControl
     private readonly Button _reloadButton = new() { Text = "Reload coach", AutoSize = true };
     private readonly ProgressBar _busyBar = new() { Style = ProgressBarStyle.Marquee, Visible = false, Height = 12, Dock = DockStyle.Top };
 
-    internal CoachPanel(Func<NotaeoApi?> apiFactory)
+    internal CoachPanel(Func<NotaeoApi?> apiFactory, WorkspacePreferences? preferences = null)
     {
         _apiFactory = apiFactory ?? throw new ArgumentNullException(nameof(apiFactory));
+        _aiActivity = new ThinkingOrbControl(preferences ?? new WorkspacePreferences()) { Text = "Waiting for AI…", Visible = false };
         Dock = DockStyle.Fill;
 
         var scroll = new Panel { Dock = DockStyle.Fill, AutoScroll = true };
@@ -67,6 +69,7 @@ internal sealed class CoachPanel : UserControl
         layout.Controls.Add(BuildSessionBox());
         layout.Controls.Add(BuildHistoryBox());
         layout.Controls.Add(_busyBar);
+        layout.Controls.Add(_aiActivity);
         layout.Controls.Add(_errorLabel);
         layout.Controls.Add(_reloadButton);
         layout.Controls.Add(_noticeLabel);
@@ -190,7 +193,7 @@ internal sealed class CoachPanel : UserControl
 
     private void SetBusy(bool busy, bool ai = false)
     {
-        _ = ai;
+        _aiActivity.Visible = busy && ai;
         if (busy)
         {
             _guard.TryEnter();

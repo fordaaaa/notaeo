@@ -24,6 +24,7 @@
     <Compile Include="..\Research\PendingGuard.cs" Link="Shell\PendingGuard.cs" />
     <Compile Include="..\Research\SourceOrdering.cs" Link="Shell\SourceOrdering.cs" />
     <Compile Include="..\Research\WorkspacePreferences.cs" Link="Shell\WorkspacePreferences.cs" />
+    <Compile Include="..\Research\ThinkingOrbMotion.cs" Link="Shell\ThinkingOrbMotion.cs" />
   </ItemGroup>
 
   <ItemGroup>

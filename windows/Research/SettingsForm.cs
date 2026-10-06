@@ -5,6 +5,12 @@ namespace Notaeo;
 internal sealed class SettingsForm : Form
 {
     private readonly SessionStore _session;
+    private readonly WorkspacePreferences _preferences;
+    private readonly CheckBox _reduceMotionBox = new() { Text = "Reduce motion", AutoSize = true, AccessibleName = "Reduce motion" };
+    private readonly Button _previewButton = new() { Text = "Preview AI loading", AutoSize = true };
+    private readonly Label _appearanceNotice = new() { AutoSize = true, MaximumSize = new Size(380, 0) };
+    private readonly ThinkingOrbControl _previewOrbs;
+    private readonly System.Windows.Forms.Timer _previewTimer = new() { Interval = 3000 };
 
     private readonly Label _accountLabel = new() { AutoSize = true };
     private readonly Button _signOutButton = new() { Text = "Sign out", AutoSize = true };
@@ -27,11 +33,13 @@ internal sealed class SettingsForm : Form
     private bool _configured;
     private bool CanRender => !IsDisposed && !Disposing;
 
-    internal SettingsForm(SessionStore session)
+    internal SettingsForm(SessionStore session, WorkspacePreferences? preferences = null)
     {
         _session = session ?? throw new ArgumentNullException(nameof(session));
+        _preferences = preferences ?? new WorkspacePreferences();
+        _previewOrbs = new ThinkingOrbControl(_preferences) { Text = "Preparing an explanation…", Visible = false };
         Text = "Notaeo Settings";
-        MinimumSize = new Size(460, 420);
+        MinimumSize = new Size(480, 650);
         StartPosition = FormStartPosition.CenterParent;
         FormBorderStyle = FormBorderStyle.FixedDialog;
         MaximizeBox = false;
@@ -55,10 +63,38 @@ internal sealed class SettingsForm : Form
         {
             Dock = DockStyle.Fill,
             ColumnCount = 1,
-            RowCount = 3,
+            RowCount = 4,
             Padding = new Padding(12),
             AutoSize = true,
         };
+
+        var appearance = new GroupBox { Text = "Motion", Dock = DockStyle.Fill, AutoSize = true };
+        var appearanceLayout = new FlowLayoutPanel { Dock = DockStyle.Fill, AutoSize = true, FlowDirection = FlowDirection.TopDown, WrapContents = false };
+        _reduceMotionBox.Checked = _preferences.ReduceMotion;
+        _reduceMotionBox.CheckedChanged += (_, _) =>
+        {
+            try { _preferences.SetReduceMotion(_reduceMotionBox.Checked); _appearanceNotice.Text = ""; }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                _reduceMotionBox.Checked = _preferences.ReduceMotion;
+                _appearanceNotice.Text = "Couldn't save the motion preference: " + ex.Message;
+            }
+        };
+        _previewButton.Click += (_, _) =>
+        {
+            _previewOrbs.Visible = true;
+            _previewButton.Enabled = false;
+            _previewTimer.Start();
+        };
+        _previewTimer.Tick += (_, _) =>
+        {
+            _previewTimer.Stop();
+            _previewOrbs.Visible = false;
+            _previewButton.Enabled = true;
+        };
+        appearanceLayout.Controls.AddRange([_reduceMotionBox, _previewButton, _previewOrbs,
+            new Label { Text = "A three-second local preview. No AI request is made.", AutoSize = true }, _appearanceNotice]);
+        appearance.Controls.Add(appearanceLayout);
 
         var account = new GroupBox { Text = "Account", Dock = DockStyle.Fill, AutoSize = true };
         var accountLayout = new FlowLayoutPanel { Dock = DockStyle.Fill, FlowDirection = FlowDirection.TopDown, AutoSize = true };
@@ -97,13 +133,20 @@ internal sealed class SettingsForm : Form
         var closeHost = new FlowLayoutPanel { Dock = DockStyle.Fill, FlowDirection = FlowDirection.RightToLeft, AutoSize = true };
         closeHost.Controls.Add(closeButton);
 
-        layout.Controls.Add(account, 0, 0);
-        layout.Controls.Add(ai, 0, 1);
-        layout.Controls.Add(closeHost, 0, 2);
+        layout.Controls.Add(appearance, 0, 0);
+        layout.Controls.Add(account, 0, 1);
+        layout.Controls.Add(ai, 0, 2);
+        layout.Controls.Add(closeHost, 0, 3);
         Controls.Add(layout);
         AcceptButton = closeButton;
 
         Shown += async (_, _) => await LoadAsync();
+    }
+
+    protected override void Dispose(bool disposing)
+    {
+        if (disposing) _previewTimer.Dispose();
+        base.Dispose(disposing);
     }
 
     private string CurrentProvider() => _providerBox.SelectedItem?.ToString() ?? "gemini";
