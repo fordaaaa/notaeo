@@ -142,3 +142,37 @@ public sealed record AISettings(
     [property: JsonPropertyName("configured")] bool Configured,
     [property: JsonPropertyName("provider")] string? Provider,
     [property: JsonPropertyName("model")] string? Model);
+
+public sealed record SearchRequest(
+    string Query,
+    string? Kind = null,
+    bool Related = true,
+    int Offset = 0,
+    int Limit = 10);
+
+public sealed record SearchHit(
+    [property: JsonPropertyName("source_id")] string SourceId,
+    [property: JsonPropertyName("source_title")] string SourceTitle,
+    [property: JsonPropertyName("pages")] List<int> Pages,
+    [property: JsonPropertyName("score")] double Score,
+    [property: JsonPropertyName("snippet")] string Snippet,
+    [property: JsonPropertyName("matched_terms")] List<string> MatchedTerms);
+
+public sealed record SearchPage(
+    [property: JsonPropertyName("query")] string Query,
+    [property: JsonPropertyName("hits")] List<SearchHit> Hits,
+    [property: JsonPropertyName("total")] int Total,
+    [property: JsonPropertyName("limit")] int Limit,
+    [property: JsonPropertyName("offset")] int Offset,
+    [property: JsonPropertyName("has_more")] bool HasMore,
+    [property: JsonPropertyName("took_ms")] int TookMs,
+    [property: JsonPropertyName("related")] bool Related);
+
+public sealed record MindMapNode(
+    [property: JsonPropertyName("id")] string Id,
+    [property: JsonPropertyName("name")] string Name,
+    [property: JsonPropertyName("children")] List<MindMapNode> Children,
+    [property: JsonPropertyName("source_id")] string? SourceId,
+    [property: JsonPropertyName("pages")] List<int> Pages);
+
+public sealed record MindMapExport(byte[] Data, string Filename);

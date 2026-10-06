@@ -115,7 +115,8 @@ public sealed class NotaeoApi
         string path, HttpMethod method,
         IReadOnlyDictionary<string, string>? query = null,
         HttpContent? content = null,
-        CancellationToken ct = default)
+        CancellationToken ct = default,
+        Action<string?>? contentDispositionCallback = null)
     {
         var attemptedAccount = _accountToken();
         HttpResponseMessage resp;
@@ -139,6 +140,17 @@ public sealed class NotaeoApi
 
         using (resp)
         {
+            if (contentDispositionCallback is not null)
+            {
+                try
+                {
+                    contentDispositionCallback(ExtractFilename(resp));
+                }
+                catch (Exception)
+                {
+                }
+            }
+
             int? retryAfter = null;
             if (resp.Headers.TryGetValues("Retry-After", out var values))
             {
@@ -149,9 +161,21 @@ public sealed class NotaeoApi
                 }
             }
 
-            var body = resp.Content is null
-                ? Array.Empty<byte>()
-                : await resp.Content.ReadAsByteArrayAsync(ct).ConfigureAwait(false);
+            byte[] body;
+            try
+            {
+                body = resp.Content is null
+                    ? Array.Empty<byte>()
+                    : await resp.Content.ReadAsByteArrayAsync(ct).ConfigureAwait(false);
+            }
+            catch (TaskCanceledException ex) when (!ct.IsCancellationRequested)
+            {
+                throw new ApiException(ApiErrorKind.Network, 0, $"request timed out: {ex.Message}");
+            }
+            catch (TaskCanceledException)
+            {
+                throw new ApiException(ApiErrorKind.Network, 0, "request cancelled");
+            }
             var status = (int)resp.StatusCode;
             if (status is >= 200 and <= 299)
             {
@@ -182,6 +206,226 @@ public sealed class NotaeoApi
         catch (Exception)
         {
         }
+    }
+
+    private static string? ExtractFilename(HttpResponseMessage resp)
+    {
+        try
+        {
+            var cd = resp.Content?.Headers?.ContentDisposition;
+            if (cd is not null)
+            {
+                var star = cd.FileNameStar?.Trim().Trim('"').Trim();
+                if (!string.IsNullOrEmpty(star))
+                {
+                    return star;
+                }
+
+                var name = cd.FileName?.Trim().Trim('"').Trim();
+                if (!string.IsNullOrEmpty(name))
+                {
+                    return name;
+                }
+            }
+        }
+        catch (Exception)
+        {
+        }
+
+        string? raw = null;
+        try
+        {
+            if (resp.Content?.Headers.TryGetValues("Content-Disposition", out var cvals) == true)
+            {
+                raw = cvals.FirstOrDefault();
+            }
+            else if (resp.Headers.TryGetValues("Content-Disposition", out var rvals) == true)
+            {
+                raw = rvals.FirstOrDefault();
+            }
+        }
+        catch (Exception)
+        {
+            return null;
+        }
+
+        if (string.IsNullOrEmpty(raw))
+        {
+            return null;
+        }
+
+        return ParseFilenameFromContentDisposition(raw);
+    }
+
+    private static string? ParseFilenameFromContentDisposition(string header)
+    {
+        try
+        {
+            var starIdx = header.IndexOf("filename*=", StringComparison.OrdinalIgnoreCase);
+            if (starIdx >= 0)
+            {
+                var rest = header[(starIdx + "filename*=".Length)..].Trim();
+                var end = rest.IndexOf(';');
+                var value = (end >= 0 ? rest[..end] : rest).Trim().Trim('"').Trim();
+                if (!string.IsNullOrEmpty(value))
+                {
+                    var sep = value.LastIndexOf("''", StringComparison.Ordinal);
+                    var encoded = sep >= 0 ? value[(sep + 2)..] : value;
+                    try
+                    {
+                        return Uri.UnescapeDataString(encoded.Trim().Trim('"'));
+                    }
+                    catch (Exception)
+                    {
+                        return encoded;
+                    }
+                }
+            }
+
+            var idx = header.IndexOf("filename=", StringComparison.OrdinalIgnoreCase);
+            if (idx < 0)
+            {
+                return null;
+            }
+
+            var tail = header[(idx + "filename=".Length)..].Trim();
+            if (tail.StartsWith("\"", StringComparison.Ordinal))
+            {
+                var close = tail.IndexOf('"', 1);
+                if (close > 1)
+                {
+                    return tail[1..close];
+                }
+
+                return tail.Trim('"').Trim();
+            }
+
+            var semi = tail.IndexOf(';');
+            var token = (semi >= 0 ? tail[..semi] : tail).Trim().Trim('"').Trim();
+            return string.IsNullOrEmpty(token) ? null : token;
+        }
+        catch (Exception)
+        {
+            return null;
+        }
+    }
+
+    internal static string SanitizeExportFilename(string? raw, string fallback = "mindmap.md")
+    {
+        if (string.IsNullOrWhiteSpace(raw))
+        {
+            return fallback;
+        }
+
+        var cleaned = raw.Trim().Trim('"').Trim();
+        if (string.IsNullOrWhiteSpace(cleaned))
+        {
+            return fallback;
+        }
+
+        cleaned = cleaned.Replace('\\', '/');
+        var segments = cleaned.Split('/', StringSplitOptions.RemoveEmptyEntries);
+        var baseName = segments.Length > 0 ? segments[^1].Trim() : cleaned.Trim();
+        if (string.IsNullOrWhiteSpace(baseName))
+        {
+            return fallback;
+        }
+
+        // Strip drive prefix such as "C:" left over from "C:evil.md".
+        var colon = baseName.IndexOf(':');
+        if (colon >= 0 && colon < baseName.Length - 1 && segments.Length == 1)
+        {
+            baseName = baseName[(colon + 1)..].Trim();
+            if (string.IsNullOrWhiteSpace(baseName))
+            {
+                return fallback;
+            }
+        }
+
+        var sb = new StringBuilder(baseName.Length);
+        foreach (var c in baseName)
+        {
+            if (c <= 0x1F || c == 0x7F)
+            {
+                continue;
+            }
+
+            if (c is '<' or '>' or ':' or '"' or '/' or '\\' or '|' or '?' or '*')
+            {
+                sb.Append('_');
+            }
+            else
+            {
+                sb.Append(c);
+            }
+        }
+
+        var s = sb.ToString().Trim().TrimEnd('.', ' ').Trim();
+        if (string.IsNullOrEmpty(s) || s == "." || s == ".." || s.All(c => c == '.'))
+        {
+            return fallback;
+        }
+
+        var dot = s.LastIndexOf('.');
+        var stemForReserved = dot > 0 ? s[..dot] : s;
+        var reserved = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "CON", "PRN", "AUX", "NUL",
+            "COM1", "COM2", "COM3", "COM4", "COM5", "COM6", "COM7", "COM8", "COM9",
+            "LPT1", "LPT2", "LPT3", "LPT4", "LPT5", "LPT6", "LPT7", "LPT8", "LPT9",
+        };
+        if (reserved.Contains(stemForReserved.Trim()))
+        {
+            s = "_" + s;
+        }
+
+        const int maxBytes = 255;
+        if (Encoding.UTF8.GetByteCount(s) > maxBytes)
+        {
+            var ext = string.Empty;
+            var extIdx = s.LastIndexOf('.');
+            if (extIdx > 0 && extIdx < s.Length - 1 && s.Length - extIdx <= 20)
+            {
+                ext = s[extIdx..];
+            }
+
+            var extBytes = Encoding.UTF8.GetByteCount(ext);
+            var budget = maxBytes - extBytes;
+            if (budget <= 0)
+            {
+                return fallback;
+            }
+
+            var stem = extIdx > 0 ? s[..extIdx] : s;
+            while (stem.Length > 0 && Encoding.UTF8.GetByteCount(stem) + extBytes > maxBytes)
+            {
+                // Avoid splitting a surrogate pair.
+                if (stem.Length >= 2 && char.IsLowSurrogate(stem[^1]) && char.IsHighSurrogate(stem[^2]))
+                {
+                    stem = stem[..^2];
+                }
+                else
+                {
+                    stem = stem[..^1];
+                }
+            }
+
+            stem = stem.TrimEnd('.', ' ').Trim();
+            if (string.IsNullOrEmpty(stem))
+            {
+                return fallback;
+            }
+
+            s = stem + ext;
+        }
+
+        s = s.Trim();
+        if (string.IsNullOrEmpty(s) || s == "." || s == "..")
+        {
+            return fallback;
+        }
+
+        return s;
     }
 
     internal static ApiException MapError(int status, byte[] body, int? retryAfter)
@@ -567,5 +811,59 @@ public sealed class NotaeoApi
     public async Task ClearAISettingsAsync(CancellationToken ct = default)
     {
         await SendRawAsync("api/settings/ai", HttpMethod.Delete, ct: ct).ConfigureAwait(false);
+    }
+
+    // ---------- study workspace (search + mind map) ----------
+
+    public async Task<SearchPage> SearchNotebookAsync(string notebookId, SearchRequest request, CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(notebookId))
+        {
+            throw new ArgumentException("Notebook id must not be empty.", nameof(notebookId));
+        }
+
+        ArgumentNullException.ThrowIfNull(request);
+        var query = new Dictionary<string, string>
+        {
+            ["q"] = request.Query,
+            ["offset"] = request.Offset.ToString(),
+            ["limit"] = request.Limit.ToString(),
+            ["related"] = request.Related ? "true" : "false",
+        };
+        if (!string.IsNullOrEmpty(request.Kind))
+        {
+            query["kind"] = request.Kind;
+        }
+
+        var (body, _, _) = await SendRawAsync(
+            $"api/notebooks/{notebookId}/search/page", HttpMethod.Get,
+            query: query, ct: ct).ConfigureAwait(false);
+        return Decode<SearchPage>(body);
+    }
+
+    public async Task<MindMapNode> GetMindMapAsync(string notebookId, CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(notebookId))
+        {
+            throw new ArgumentException("Notebook id must not be empty.", nameof(notebookId));
+        }
+
+        var (body, _, _) = await SendRawAsync(
+            $"api/notebooks/{notebookId}/mindmap", HttpMethod.Get, ct: ct).ConfigureAwait(false);
+        return Decode<MindMapNode>(body);
+    }
+
+    public async Task<MindMapExport> ExportMindMapAsync(string notebookId, CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(notebookId))
+        {
+            throw new ArgumentException("Notebook id must not be empty.", nameof(notebookId));
+        }
+
+        string? rawFilename = null;
+        var (body, _, _) = await SendRawAsync(
+            $"api/notebooks/{notebookId}/mindmap/export", HttpMethod.Get,
+            ct: ct, contentDispositionCallback: v => rawFilename = v).ConfigureAwait(false);
+        return new MindMapExport(body, SanitizeExportFilename(rawFilename));
     }
 }
