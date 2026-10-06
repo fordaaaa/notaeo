@@ -471,17 +471,23 @@ struct NativeAIActivity: View {
     var body: some View {
         HStack(spacing: 8) {
             TimelineView(.animation(minimumInterval: 1.0 / 30, paused: policy.reducesMotion)) { context in
-                HStack(spacing: 4) {
+                ZStack {
                     ForEach(0..<3) { index in
-                        let sample = policy.activitySample(time: context.date.timeIntervalSinceReferenceDate, index: index)
+                        let sample = policy.orbSample(time: context.date.timeIntervalSinceReferenceDate, index: index)
+                        let tint = index == 0 ? NativePalette.accent : index == 1 ? Color.cyan : Color.indigo
                         Circle()
-                            .fill(NativePalette.accent)
-                            .frame(width: 6, height: 6)
-                            .opacity(policy.reducesMotion ? 0.7 : sample.opacity)
-                            .offset(y: policy.reducesMotion ? 0 : CGFloat(sample.offset))
+                            .fill(RadialGradient(colors: [.white.opacity(0.9), tint.opacity(0.6), tint],
+                                                 center: .topLeading, startRadius: 0, endRadius: 23))
+                            .overlay(Circle().strokeBorder(.white.opacity(0.25), lineWidth: 0.5))
+                            .frame(width: 20, height: 20)
+                            .shadow(color: tint.opacity(0.2), radius: 5)
+                            .scaleEffect(sample.scale)
+                            .opacity(sample.opacity)
+                            .offset(x: CGFloat(Double(index - 1) * 15 + sample.x),
+                                    y: CGFloat((index == 1 ? -2.0 : 2.0) + sample.y))
                     }
                 }
-                .frame(height: 18)
+                .frame(width: 60, height: 34)
             }
             .accessibilityHidden(true)
             Text(label).font(NativeType.caption).foregroundStyle(.secondary)

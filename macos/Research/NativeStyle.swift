@@ -54,6 +54,21 @@ struct NativeMotionPolicy {
         let lift = max(0, sin(phase))
         return ActivitySample(opacity: 0.6 + 0.25 * sin(phase), offset: -3 * lift)
     }
+
+    struct OrbSample {
+        let scale: Double
+        let x: Double
+        let y: Double
+        let opacity: Double
+    }
+
+    func orbSample(time: Double, index: Int) -> OrbSample {
+        guard !reducesMotion else { return OrbSample(scale: 1, x: 0, y: 0, opacity: 0.8) }
+        let phase = time.truncatingRemainder(dividingBy: 4) / 4 * 2 * .pi - Double(index) * 0.85
+        let activity = activitySample(time: time.truncatingRemainder(dividingBy: 4) * 0.45, index: index)
+        return OrbSample(scale: 1 + 0.08 * sin(phase), x: 2.5 * cos(phase),
+                         y: activity.offset + 1.5, opacity: 0.8 + (activity.opacity - 0.6) * 0.5)
+    }
 }
 
 struct NativeCard<Content: View>: View {

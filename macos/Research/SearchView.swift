@@ -103,7 +103,7 @@ struct SearchView: View {
                 }
                 if controller.isLoading {
                     HStack {
-                        ProgressView("Searching your material…")
+                        NativeAIActivity(label: "Searching your material…")
                         Spacer()
                         Button("Cancel") { request = nil; searchVersion += 1; controller.clear() }
                     }.transition(motion.transition)
