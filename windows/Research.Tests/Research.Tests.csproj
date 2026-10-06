@@ -27,6 +27,7 @@
     <Compile Include="..\Research\ThinkingOrbMotion.cs" Link="Shell\ThinkingOrbMotion.cs" />
     <Compile Include="..\Research\SourceReaderDocument.cs" Link="Shell\SourceReaderDocument.cs" />
     <Compile Include="..\Research\SearchController.cs" Link="Shell\SearchController.cs" />
+    <Compile Include="..\Research\MindMapLayout.cs" Link="Shell\MindMapLayout.cs" />
   </ItemGroup>
 
   <ItemGroup>

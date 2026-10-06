@@ -22,6 +22,40 @@ Live state of the project. **Read this first** before doing anything.
 > same guarantees). Both carry frontend tests (`api.export.test.ts`,
 > `api.study-export.test.ts`); 401s clear the token and signal login.
 
+## Windows study workspace parity (2026-10-06)
+
+- Windows now includes native Search (Ctrl+F), source sorting/import dates,
+  thinking orbs and Mind map. Search uses the existing paginated ranking API
+  with phrases, related terms, source-type filters and full cited snippets.
+  Source actions from Search and maps select Sources and scroll to the actual
+  cited page, including chunk-only documents. Search survives tab changes;
+  notebook/account changes cancel and clear pending content.
+- Device-only sort and Reduce Motion choices live in `preferences.json`,
+  separate from the DPAPI account file. Natural names, UTC date comparisons,
+  invalid-date placement and stable ties match the macOS behavior. Orbs stop
+  for either Windows or app reduced motion and when hidden/disposed. Native
+  Settings provides a three-second local preview without an AI request.
+- Mind map has a connected scrollable/zoomable graph, collapse/expand,
+  native TreeView outline and keyboard source actions. All branches remain
+  reachable. Authenticated Markdown export uses a sanitized server filename
+  and prepares a temporary file before replacing the chosen destination.
+- The existing backend already supplies search ranking, pagination and cited
+  maps; this port adds no backend routes, migrations, providers or dependencies.
+  Windows source/AI/account calls retain both authentication headers.
+- OpenCode approved the spec, implemented transport, Search and map units;
+  root integrated navigation, sorting, orbs and lifecycle corrections. Tests
+  were red before implementation; root regressions caught pre-cancelled search,
+  same-page reader offsets and a clipped single-source map before fixes.
+- Verification: full portable Windows suite **109 passed**; Release build
+  **0 warnings/errors**; self-contained `win-x64` publish succeeded. Independent
+  OpenCode reviewers approved the final contracts/motion, Search/navigation and
+  map corrections before feature commits. The signed arm64 macOS rebuild passed.
+  The actual C# API client passed a disposable packaged-loopback check for
+  search pagination, cited reader/map, Unicode export, missing auth 401 and
+  foreign-owner 404.
+  Actual WinForms layout/accessibility, OS animation settings, real DPAPI and
+  Windows-packaged sidecar launch still require Windows runtime verification.
+
 ## Native study workspace features (2026-10-06)
 
 - Thinking orbs replace the small loading dots in startup, optional AI,
@@ -54,7 +88,7 @@ Live state of the project. **Read this first** before doing anything.
   Native preview inspection covered connected branches, sorting dates and
   a concept click opening its correct source reader. Physical trackpad zoom,
   large-course usability and the Save dialog's final file write remain manual
-  checks. New native controls are macOS-only; Windows ports remain follow-up.
+  checks. The Windows counterparts are now implemented; see the parity entry above.
 - OpenCode implemented the ranking pass and the initial cited-map backend/UI;
   root completed map wiring, graph/zoom, cancellation, accessibility and export
   corrections. Independent OpenCode reviewers approved both the search diff
