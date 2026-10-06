@@ -163,6 +163,7 @@ struct SourcesView: View {
     @State private var importerPresented = false
     @State private var readingId: String?
     @State private var addingSources = false
+    @AppStorage("notaeo.native.sourceSort") private var sourceSort = SourceSortOrder.newest.rawValue
     @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
     @AppStorage("notaeo.native.reduceMotion") private var reduceMotion = false
 
@@ -177,18 +178,33 @@ struct SourcesView: View {
         _selectedSourceId = State(initialValue: initialSourceId)
     }
 
+    private var sortedSources: [SourceSummary] {
+        (SourceSortOrder(rawValue: sourceSort) ?? .newest).sorted(sources)
+    }
+
     var body: some View {
         NavigationSplitView {
-            List(selection: $selectedSourceId) {
-                ForEach(sources) { s in
-                    HStack(alignment: .top, spacing: 9) {
-                        Image(systemName: s.kind == "url" ? "link" : "doc.text")
-                            .foregroundStyle(NativePalette.accent).padding(.top, 2).accessibilityHidden(true)
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text(s.title).font(.system(size: 14, weight: .medium)).lineLimit(2)
-                            Text(s.kind.uppercased()).font(NativeType.caption).foregroundStyle(.secondary)
-                        }
-                    }.padding(.vertical, 5).tag(s.id as String?)
+            VStack(spacing: 0) {
+                Picker("Sort material", selection: $sourceSort) {
+                    ForEach(SourceSortOrder.allCases) { Text($0.label).tag($0.rawValue) }
+                }.padding(12).accessibilityLabel("Sort course material")
+                Divider()
+                List(selection: $selectedSourceId) {
+                    ForEach(sortedSources) { s in
+                        HStack(alignment: .top, spacing: 9) {
+                            Image(systemName: s.kind == "url" ? "link" : "doc.text")
+                                .foregroundStyle(NativePalette.accent).padding(.top, 2).accessibilityHidden(true)
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(s.title).font(.system(size: 14, weight: .medium)).lineLimit(2)
+                                Text(s.kind.uppercased()).font(NativeType.caption).foregroundStyle(.secondary)
+                                if let date = SourceSortOrder.creationDate(of: s) {
+                                    Text(date, format: .dateTime.month(.abbreviated).day().year())
+                                        .font(NativeType.caption).foregroundStyle(.secondary)
+                                        .help("Added \(date.formatted(date: .abbreviated, time: .shortened))")
+                                }
+                            }
+                        }.padding(.vertical, 5).tag(s.id as String?)
+                    }
                 }
             }
             .navigationSplitViewColumnWidth(min: 220, ideal: 280)
@@ -292,7 +308,7 @@ struct SourcesView: View {
             guard !Task.isCancelled else { return }
             sources = result
             if sources.isEmpty { addingSources = true }
-            if selectedSourceId == nil { selectedSourceId = sources.first?.id }
+            if selectedSourceId == nil { selectedSourceId = sortedSources.first?.id }
             notice = nil
         } catch {
             notice = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
