@@ -5,6 +5,9 @@ namespace Notaeo;
 internal sealed class SourcesPanel : UserControl
 {
     private readonly Func<NotaeoApi?> _apiFactory;
+    private readonly WorkspacePreferences _preferences;
+    private readonly ComboBox _sortBox = new() { DropDownStyle = ComboBoxStyle.DropDownList, Dock = DockStyle.Top, AccessibleName = "Sort course material" };
+    private bool _suppressSourceSelection;
 
     private Notebook? _notebook;
     private int _epoch;
@@ -25,13 +28,34 @@ internal sealed class SourcesPanel : UserControl
 
     private List<SourceSummary> _sources = [];
 
-    internal SourcesPanel(Func<NotaeoApi?> apiFactory)
+    internal SourcesPanel(Func<NotaeoApi?> apiFactory, WorkspacePreferences? preferences = null)
     {
         _apiFactory = apiFactory ?? throw new ArgumentNullException(nameof(apiFactory));
+        _preferences = preferences ?? new WorkspacePreferences();
         Dock = DockStyle.Fill;
 
         var split = new SplitContainer { Dock = DockStyle.Fill, SplitterDistance = 260 };
         split.Panel1.Controls.Add(_sourcesList);
+        _sortBox.Items.AddRange(Enum.GetValues<SourceOrder>().Select(SourceOrdering.Label).Cast<object>().ToArray());
+        _sortBox.SelectedIndex = (int)_preferences.SourceOrder;
+        split.Panel1.Controls.Add(_sortBox);
+        _sortBox.SelectedIndexChanged += (_, _) =>
+        {
+            try
+            {
+                _preferences.SetSourceOrder((SourceOrder)_sortBox.SelectedIndex);
+                ApplySourceOrder();
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                _sortBox.SelectedIndex = (int)_preferences.SourceOrder;
+                _noticeLabel.Text = "Couldn't save the sort choice: " + ex.Message;
+            }
+        };
+        _sourcesList.DrawMode = DrawMode.OwnerDrawFixed;
+        _sourcesList.ItemHeight = 56;
+        _sourcesList.DrawItem += DrawSource;
+        DpiChangedAfterParent += (_, _) => _sourcesList.ItemHeight = (int)(56 * DeviceDpi / 96f);
 
         var detail = new Panel { Dock = DockStyle.Fill, AutoScroll = true };
         var layout = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 5, Padding = new Padding(10), AutoSize = true };
@@ -50,7 +74,7 @@ internal sealed class SourcesPanel : UserControl
         _sourcesList.DisplayMember = "Title";
         _sourcesList.SelectedIndexChanged += async (_, _) =>
         {
-            if (_sourcesList.SelectedItem is SourceSummary s)
+            if (!_suppressSourceSelection && _sourcesList.SelectedItem is SourceSummary s)
             {
                 await ReadAsync(s.Id);
             }
@@ -117,19 +141,8 @@ internal sealed class SourcesPanel : UserControl
             }
 
             _sources = list;
-            _sourcesList.BeginUpdate();
-            _sourcesList.Items.Clear();
-            foreach (var s in _sources)
-            {
-                _sourcesList.Items.Add(s);
-            }
-
-            _sourcesList.DisplayMember = "Title";
-            _sourcesList.EndUpdate();
-            if (_sourcesList.SelectedItem is null && _sources.Count > 0)
-            {
-                _sourcesList.SelectedIndex = 0;
-            }
+            ApplySourceOrder();
+            if (_sourcesList.SelectedItem is SourceSummary selected) await ReadAsync(selected.Id);
 
             _noticeLabel.Text = string.Empty;
         }
@@ -155,6 +168,38 @@ internal sealed class SourcesPanel : UserControl
         {
             await BindNotebookAsync(_notebook);
         }
+    }
+
+    private void ApplySourceOrder()
+    {
+        var selectedId = (_sourcesList.SelectedItem as SourceSummary)?.Id;
+        var ordered = SourceOrdering.Order(_sources, _preferences.SourceOrder);
+        _suppressSourceSelection = true;
+        _sourcesList.BeginUpdate();
+        try
+        {
+            _sourcesList.Items.Clear();
+            foreach (var source in ordered) _sourcesList.Items.Add(source);
+            var index = ordered.FindIndex(source => source.Id == selectedId);
+            if (ordered.Count > 0) _sourcesList.SelectedIndex = Math.Max(0, index);
+        }
+        finally { _sourcesList.EndUpdate(); _suppressSourceSelection = false; }
+    }
+
+    private void DrawSource(object? sender, DrawItemEventArgs e)
+    {
+        if (e.Index < 0 || e.Index >= _sourcesList.Items.Count) return;
+        var source = (SourceSummary)_sourcesList.Items[e.Index];
+        e.DrawBackground();
+        var foreground = (e.State & DrawItemState.Selected) != 0 ? SystemColors.HighlightText : _sourcesList.ForeColor;
+        var bounds = new Rectangle(e.Bounds.X + 8, e.Bounds.Y + 5, Math.Max(0, e.Bounds.Width - 16), e.Bounds.Height / 2);
+        TextRenderer.DrawText(e.Graphics, source.Title, _sourcesList.Font, bounds, foreground,
+            TextFormatFlags.EndEllipsis | TextFormatFlags.NoPrefix);
+        var date = SourceOrdering.CreationDate(source)?.ToLocalTime().ToString("d") ?? "Date unavailable";
+        bounds.Y += e.Bounds.Height / 2; bounds.Height = e.Bounds.Height / 2 - 4;
+        TextRenderer.DrawText(e.Graphics, $"{source.Kind.ToUpperInvariant()} · {date}", _sourcesList.Font, bounds, foreground,
+            TextFormatFlags.EndEllipsis | TextFormatFlags.NoPrefix);
+        e.DrawFocusRectangle();
     }
 
     private async Task ReadAsync(string id)

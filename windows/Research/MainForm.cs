@@ -8,6 +8,7 @@ internal sealed class MainForm : Form
     private readonly BackendProcess _backend = new();
     private readonly HttpClient _http;
     private readonly SessionStore _session;
+    private readonly WorkspacePreferences _preferences = new();
 
     private int _notebookEpoch;
 
@@ -48,7 +49,7 @@ internal sealed class MainForm : Form
 
         _http = new HttpClient { Timeout = TimeSpan.FromSeconds(30) };
         _session = new SessionStore(_http);
-        _sourcesPanel = new SourcesPanel(() => _session.MakeApi());
+        _sourcesPanel = new SourcesPanel(() => _session.MakeApi(), _preferences);
         _coachPanel = new CoachPanel(() => _session.MakeApi());
 
         var menu = new MenuStrip();

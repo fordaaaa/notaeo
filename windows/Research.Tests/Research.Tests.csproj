@@ -22,6 +22,8 @@
     <Compile Include="..\Research\BackendProcess.cs" Link="Shell\BackendProcess.cs" />
     <Compile Include="..\Research\UploadPolicy.cs" Link="Shell\UploadPolicy.cs" />
     <Compile Include="..\Research\PendingGuard.cs" Link="Shell\PendingGuard.cs" />
+    <Compile Include="..\Research\SourceOrdering.cs" Link="Shell\SourceOrdering.cs" />
+    <Compile Include="..\Research\WorkspacePreferences.cs" Link="Shell\WorkspacePreferences.cs" />
   </ItemGroup>
 
   <ItemGroup>
