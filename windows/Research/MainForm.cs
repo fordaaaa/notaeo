@@ -36,7 +36,10 @@ internal sealed class MainForm : Form
     private readonly Label _notebookNotice = new() { AutoSize = true, MaximumSize = new Size(220, 0) };
     private readonly TabControl _tabs = new() { Dock = DockStyle.Fill };
     private readonly SourcesPanel _sourcesPanel;
+    private readonly SearchPanel _searchPanel;
     private readonly CoachPanel _coachPanel;
+    private readonly TabPage _sourcesTab = new("Sources");
+    private readonly TabPage _searchTab = new("Search");
 
     private List<Notebook> _notebooks = [];
     private string? _selectedNotebookId;
@@ -50,6 +53,8 @@ internal sealed class MainForm : Form
         _http = new HttpClient { Timeout = TimeSpan.FromSeconds(30) };
         _session = new SessionStore(_http);
         _sourcesPanel = new SourcesPanel(() => _session.MakeApi(), _preferences);
+        _searchPanel = new SearchPanel(() => _session.MakeApi(), _preferences);
+        _searchPanel.OpenSourceRequested += async (sourceId, page) => await OpenSourceAsync(sourceId, page);
         _coachPanel = new CoachPanel(() => _session.MakeApi(), _preferences);
 
         var menu = new MenuStrip();
@@ -166,6 +171,8 @@ internal sealed class MainForm : Form
             {
                 _selectedNotebookId = nb.Id;
                 var epoch = ++_notebookEpoch;
+                _searchPanel.BindNotebook(nb);
+                _coachPanel.ClearNotebook();
                 try
                 {
                     await _sourcesPanel.BindNotebookAsync(nb).ConfigureAwait(true);
@@ -190,8 +197,15 @@ internal sealed class MainForm : Form
         left.Controls.Add(bottom);
         _mainSplit.Panel1.Controls.Add(left);
 
-        _tabs.TabPages.Add(new TabPage("Sources") { Controls = { _sourcesPanel } });
+        _sourcesTab.Controls.Add(_sourcesPanel);
+        _searchTab.Controls.Add(_searchPanel);
+        _tabs.TabPages.Add(_sourcesTab);
+        _tabs.TabPages.Add(_searchTab);
         _tabs.TabPages.Add(new TabPage("Exam coach") { Controls = { _coachPanel } });
+        _tabs.SelectedIndexChanged += (_, _) =>
+        {
+            if (_tabs.SelectedTab != _searchTab) _searchPanel.Deactivate();
+        };
         _mainSplit.Panel2.Controls.Add(_tabs);
 
         _createNotebookButton.Click += async (_, _) => await CreateNotebookAsync();
@@ -343,6 +357,14 @@ internal sealed class MainForm : Form
         {
             return;
         }
+
+        _notebookEpoch++;
+        _selectedNotebookId = null;
+        _notebooks = [];
+        _notebookList.Items.Clear();
+        _searchPanel.BindNotebook(null);
+        _sourcesPanel.ClearNotebook();
+        _coachPanel.ClearNotebook();
 
         _loadingLabel.Visible = false;
         _errorPanel.Visible = false;
@@ -641,6 +663,29 @@ internal sealed class MainForm : Form
     }
 
     // ---------- settings ----------
+
+    protected override bool ProcessCmdKey(ref Message message, Keys keyData)
+    {
+        if (keyData == (Keys.Control | Keys.F) && _session.IsLoggedIn && _selectedNotebookId is not null)
+        {
+            _tabs.SelectedTab = _searchTab;
+            _searchPanel.FocusQuery();
+            return true;
+        }
+        return base.ProcessCmdKey(ref message, keyData);
+    }
+
+    private async Task OpenSourceAsync(string sourceId, int? page)
+    {
+        if (!_session.IsLoggedIn || _selectedNotebookId is null || IsDisposed || Disposing) return;
+        var epoch = _notebookEpoch;
+        _tabs.SelectedTab = _sourcesTab;
+        try { await _sourcesPanel.OpenSourceAsync(sourceId, page).ConfigureAwait(true); }
+        catch (Exception ex)
+        {
+            if (epoch == _notebookEpoch && !IsDisposed && !Disposing) _notebookNotice.Text = ex.Message;
+        }
+    }
 
     private void OpenSettings()
     {

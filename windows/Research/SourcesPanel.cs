@@ -11,6 +11,10 @@ internal sealed class SourcesPanel : UserControl
 
     private Notebook? _notebook;
     private int _epoch;
+    private int _readVersion;
+    private int _loadVersion;
+    private int _pendingOperations;
+    private CancellationTokenSource? _readCancellation;
 
     private readonly ListBox _sourcesList = new() { Dock = DockStyle.Fill };
     private readonly TextBox _pasteTitleBox = new() { PlaceholderText = "Paste title" };
@@ -110,13 +114,49 @@ internal sealed class SourcesPanel : UserControl
 
     internal async Task BindNotebookAsync(Notebook notebook)
     {
+        if (_notebook?.Id != notebook.Id) ClearNotebook();
         _notebook = notebook;
         var epoch = ++_epoch;
+        _readVersion++;
+        _readCancellation?.Cancel();
+        _pendingOperations = 0;
+        SetBusy(false);
         await ReloadAsync(epoch);
+    }
+
+    internal void ClearNotebook()
+    {
+        _epoch++; _readVersion++; _loadVersion++;
+        _readCancellation?.Cancel();
+        _notebook = null;
+        _sources.Clear();
+        _suppressSourceSelection = true;
+        try { _sourcesList.Items.Clear(); }
+        finally { _suppressSourceSelection = false; }
+        _detailTitle.Text = ""; _detailMeta.Text = ""; _detailText.Clear(); _noticeLabel.Text = "";
+        _pasteTitleBox.Clear(); _pasteTextBox.Clear(); _urlBox.Clear();
+        _pendingOperations = 0;
+        SetBusy(false);
+    }
+
+    internal async Task OpenSourceAsync(string sourceId, int? page)
+    {
+        if (_notebook is null || IsDisposed || Disposing) return;
+        var epoch = _epoch;
+        if (!_sources.Any(source => source.Id == sourceId)) await ReloadAsync(epoch);
+        if (epoch != _epoch || IsDisposed || Disposing) return;
+        var index = _sourcesList.Items.Cast<SourceSummary>().ToList().FindIndex(source => source.Id == sourceId);
+        if (index < 0) { _noticeLabel.Text = "This source is no longer in the notebook."; return; }
+        _suppressSourceSelection = true;
+        try { _sourcesList.SelectedIndex = index; }
+        finally { _suppressSourceSelection = false; }
+        await ReadAsync(sourceId, page);
     }
 
     private void SetBusy(bool busy)
     {
+        _pendingOperations = busy ? _pendingOperations + 1 : Math.Max(0, _pendingOperations - 1);
+        busy = _pendingOperations > 0;
         _busyBar.Visible = busy;
         _savePasteButton.Enabled = !busy;
         _addUrlButton.Enabled = !busy;
@@ -132,10 +172,12 @@ internal sealed class SourcesPanel : UserControl
             return;
         }
 
+        var loadVersion = ++_loadVersion;
+
         try
         {
             var list = await api.ListSourcesAsync(_notebook.Id).ConfigureAwait(true);
-            if (epoch != _epoch)
+            if (epoch != _epoch || loadVersion != _loadVersion || IsDisposed || Disposing)
             {
                 return;
             }
@@ -143,19 +185,19 @@ internal sealed class SourcesPanel : UserControl
             _sources = list;
             ApplySourceOrder();
             if (_sourcesList.SelectedItem is SourceSummary selected) await ReadAsync(selected.Id);
-
+            if (epoch != _epoch || loadVersion != _loadVersion || IsDisposed || Disposing) return;
             _noticeLabel.Text = string.Empty;
         }
         catch (ApiException ex)
         {
-            if (epoch == _epoch)
+            if (epoch == _epoch && loadVersion == _loadVersion && !IsDisposed && !Disposing)
             {
                 _noticeLabel.Text = ex.Message;
             }
         }
         catch (Exception ex)
         {
-            if (epoch == _epoch)
+            if (epoch == _epoch && loadVersion == _loadVersion && !IsDisposed && !Disposing)
             {
                 _noticeLabel.Text = ex.Message;
             }
@@ -202,7 +244,7 @@ internal sealed class SourcesPanel : UserControl
         e.DrawFocusRectangle();
     }
 
-    private async Task ReadAsync(string id)
+    private async Task ReadAsync(string id, int? page = null)
     {
         var api = _apiFactory();
         if (api is null)
@@ -211,40 +253,57 @@ internal sealed class SourcesPanel : UserControl
         }
 
         var epoch = _epoch;
+        var version = ++_readVersion;
+        _readCancellation?.Cancel();
+        var cancellation = new CancellationTokenSource();
+        _readCancellation = cancellation;
+        _detailTitle.Text = "Opening source…"; _detailMeta.Text = ""; _detailText.Clear();
         SetBusy(true);
         try
         {
-            var detail = await api.GetSourceAsync(id).ConfigureAwait(true);
-            if (epoch != _epoch)
+            var detail = await api.GetSourceAsync(id, cancellation.Token).ConfigureAwait(true);
+            if (epoch != _epoch || version != _readVersion || cancellation.IsCancellationRequested || IsDisposed || Disposing)
             {
                 return;
             }
 
             _detailTitle.Text = detail.Title;
-            _detailMeta.Text = $"{detail.Kind} · {detail.Chunks.Count} chunks";
-            _detailText.Text = detail.FullText();
+            var document = SourceReaderDocument.Create(detail, page);
+            var reference = page.HasValue && document.OpenedPage.HasValue ? $" · Page {document.OpenedPage}" : "";
+            _detailMeta.Text = $"{detail.Kind.ToUpperInvariant()} · {detail.Pages.Count} pages{reference}";
+            _detailText.Text = document.Text;
+            _detailText.Select(document.SelectionStart, 0);
+            _detailText.ScrollToCaret();
         }
         catch (ApiException ex)
         {
-            if (epoch == _epoch)
+            if (epoch == _epoch && version == _readVersion && !cancellation.IsCancellationRequested && !IsDisposed && !Disposing)
             {
                 _noticeLabel.Text = ex.Message;
             }
         }
         catch (Exception ex)
         {
-            if (epoch == _epoch)
+            if (epoch == _epoch && version == _readVersion && !cancellation.IsCancellationRequested && !IsDisposed && !Disposing)
             {
                 _noticeLabel.Text = ex.Message;
             }
         }
         finally
         {
-            if (epoch == _epoch)
+            if (epoch == _epoch && !IsDisposed && !Disposing)
             {
                 SetBusy(false);
             }
+            if (ReferenceEquals(_readCancellation, cancellation)) _readCancellation = null;
+            cancellation.Dispose();
         }
+    }
+
+    protected override void Dispose(bool disposing)
+    {
+        if (disposing) { _epoch++; _readVersion++; _readCancellation?.Cancel(); }
+        base.Dispose(disposing);
     }
 
     private async Task SavePasteAsync(bool force)

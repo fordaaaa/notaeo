@@ -191,6 +191,36 @@ internal sealed class CoachPanel : UserControl
         await ReloadAsync();
     }
 
+    internal void ClearNotebook()
+    {
+        _epoch++;
+        _notebook = null;
+        _state = null;
+        _sessionId = null;
+        _explanation = null;
+        _responses.Clear();
+        _index = 0;
+        _revealed = false;
+        _aiConfigured = false;
+        _goalTitleBox.Clear();
+        _topicsBox.Clear();
+        _savedGoalLabel.Text = "";
+        _selectedMinutesLabel.Text = "";
+        _noticeLabel.Text = "";
+        _errorLabel.Text = "";
+        _referenceBox.Clear();
+        _explanationBox.Clear();
+        _minutesBox.Value = 20;
+        _examDatePicker.Value = DateTime.Today.AddDays(7);
+        _useAiBox.Checked = false;
+        _guard.Exit();
+        ApplyBusyEnabled(true);
+        _busyBar.Visible = false;
+        _aiActivity.Visible = false;
+        RenderSession();
+        RenderHistory();
+    }
+
     private void SetBusy(bool busy, bool ai = false)
     {
         _aiActivity.Visible = busy && ai;
