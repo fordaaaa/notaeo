@@ -1555,34 +1555,46 @@ class Store:
         ]
         n_docs = len(sources)
         df = {term: 0 for term in set(parsed.terms)}
+        # BM25 corpus stats at chunk granularity (ranking unit): mean chunk
+        # length in stems. Computed over the filtered sources so filters and
+        # ownership (which select `sources`) stay the ranking scope.
+        total_len = 0
+        total_chunks = 0
         for source in sources:
-            document_terms = {
-                term
-                for chunk in source.chunks
-                for term in stemmed_words(chunk.text)
-            }
+            document_terms = set()
+            for chunk in source.chunks:
+                words = stemmed_words(chunk.text)
+                total_len += len(words)
+                total_chunks += 1
+                document_terms.update(words)
             for term in df.keys() & document_terms:
                 df[term] += 1
+        avg_len = (total_len / total_chunks) if total_chunks else 0.0
 
-        hits: list[SearchHit] = []
-        for src in sources:
+        # (sort keys, hit): -score, source order, chunk seq gives a total,
+        # deterministic order so limit/offset pagination is stable on ties.
+        scored: list[tuple[tuple[float, int, int], SearchHit]] = []
+        for src_order, src in enumerate(sources):
             for chunk in src.chunks:
                 matched, score, matched_stems = score_chunk(
-                    chunk.text, parsed, df=df, n_docs=n_docs
+                    chunk.text, parsed, df=df, n_docs=n_docs, avg_len=avg_len
                 )
                 if not matched:
                     continue
-                hits.append(
-                    SearchHit(
-                        source_id=src.id,
-                        source_title=src.title,
-                        pages=chunk.pages,
-                        score=score,
-                        snippet=_snippet(chunk.text, parsed.terms),
-                        matched_terms=matched_stems,
+                scored.append(
+                    (
+                        (-score, src_order, chunk.seq),
+                        SearchHit(
+                            source_id=src.id,
+                            source_title=src.title,
+                            pages=chunk.pages,
+                            score=score,
+                            snippet=_snippet(chunk.text, parsed.terms),
+                            matched_terms=matched_stems,
+                        ),
                     )
                 )
-        if not hits and is_single_token_query(parsed):
+        if not scored and is_single_token_query(parsed):
             q_stem = parsed.terms[0]
             q_raw = parsed.original_terms[0] if parsed.original_terms else q_stem
             df_prefix = 0
@@ -1597,24 +1609,32 @@ class Store:
                     for t in document_terms
                 ):
                     df_prefix += 1
-            for src in sources:
+            for src_order, src in enumerate(sources):
                 for chunk in src.chunks:
                     matched, score, matched_stems = score_prefix_chunk(
-                        chunk.text, parsed, df_prefix=df_prefix, n_docs=n_docs
+                        chunk.text,
+                        parsed,
+                        df_prefix=df_prefix,
+                        n_docs=n_docs,
+                        avg_len=avg_len,
                     )
                     if not matched:
                         continue
-                    hits.append(
-                        SearchHit(
-                            source_id=src.id,
-                            source_title=src.title,
-                            pages=chunk.pages,
-                            score=score,
-                            snippet=_snippet(chunk.text, parsed.terms),
-                            matched_terms=matched_stems,
+                    scored.append(
+                        (
+                            (-score, src_order, chunk.seq),
+                            SearchHit(
+                                source_id=src.id,
+                                source_title=src.title,
+                                pages=chunk.pages,
+                                score=score,
+                                snippet=_snippet(chunk.text, parsed.terms),
+                                matched_terms=matched_stems,
+                            ),
                         )
                     )
-        hits.sort(key=lambda h: h.score, reverse=True)
+        scored.sort(key=lambda item: item[0])
+        hits = [hit for _, hit in scored]
         seen: set[tuple[str, tuple[int, ...], str, float]] = set()
         unique: list[SearchHit] = []
         for h in hits:

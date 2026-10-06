@@ -17,6 +17,12 @@ _PHRASE = re.compile(r'"([^"]+)"')
 PROXIMITY_WINDOW = 60  # chars; all terms within this span earn a proximity bonus
 PHRASE_BONUS = 12      # extra score per phrase substring match
 
+# BM25-style ranking knobs (Robertson & Zaragoza defaults).
+# k1 controls term-frequency saturation (higher = more linear);
+# b controls length normalization (0 = none, 1 = full).
+BM25_K1 = 1.2
+BM25_B = 0.75
+
 # Common English stopwords. Short on purpose — only words that really don't
 # carry meaning and would otherwise dominate IDF calculations.
 STOPWORDS: frozenset[str] = frozenset(
@@ -98,11 +104,25 @@ def stemmed_words(text: str) -> list[str]:
     return [stem(word) for word in _WORD.findall(text.lower())]
 
 
+def _saturate(count: int) -> float:
+    """BM25 TF saturation curve: count*(k1+1)/(count+k1). 1 -> 1.0, big -> k1+1."""
+    return count * (BM25_K1 + 1) / (count + BM25_K1)
+
+
+def _length_norm(doc_len: int, avg_len: float) -> float:
+    """BM25 length norm: 1-b+b*dl/avg. Short docs < 1 (boost), long docs > 1."""
+    if not avg_len or avg_len <= 0:
+        return 1.0
+    return 1 - BM25_B + BM25_B * doc_len / avg_len
+
+
 def score_chunk(
     text: str,
     query: ParsedQuery,
     df: dict[str, int] | None = None,
     n_docs: int = 1,
+    doc_len: int | None = None,
+    avg_len: float | None = None,
 ) -> tuple[bool, float, list[str]]:
     """Return (matched, score, matched_term_stems) for a chunk.
 
@@ -111,6 +131,10 @@ def score_chunk(
     - When `df` is None or empty, falls back to plain term frequency (no IDF).
     - `matched_term_stems` lists each stem that hit at least once — used by the
       snippet renderer to highlight matched terms in the UI.
+    - BM25: pass `avg_len` (mean chunk length in stems over the notebook) to
+      enable TF saturation + length normalization. `doc_len` defaults to this
+      chunk's stem count. When `avg_len` is None the legacy linear-TF path is
+      used, preserving old helper defaults and unit-test behavior.
     """
     lower = text.lower()
     term_counts = Counter(stemmed_words(text))
@@ -119,17 +143,26 @@ def score_chunk(
     if any(p not in lower for p in query.phrases):
         return False, 0, []
 
+    use_bm25 = avg_len is not None and avg_len > 0
+    dl = doc_len if doc_len is not None else sum(term_counts.values())
+
     score = 0.0
     matched_stems: list[str] = []
     for t in query.terms:
         tf = term_counts[t]
         if not tf:
             return False, 0, []  # belt-and-suspenders; parser already guarantees this
-        score += _tfidf(tf, t, df, n_docs)
+        score += _tfidf(tf, t, df, n_docs, doc_len=dl, avg_len=avg_len)
         matched_stems.append(t)
 
     for phrase in query.phrases:
-        score += PHRASE_BONUS * lower.count(phrase)
+        count = lower.count(phrase)
+        if use_bm25:
+            # Saturate phrase repetition so a long passage repeating the
+            # phrase does not scale linearly past a focused single mention.
+            score += PHRASE_BONUS * _saturate(count)
+        else:
+            score += PHRASE_BONUS * count
 
     score += _proximity_bonus(lower, query.terms)
     return True, score, matched_stems
@@ -150,6 +183,8 @@ def score_prefix_chunk(
     query: ParsedQuery,
     df_prefix: int = 0,
     n_docs: int = 1,
+    doc_len: int | None = None,
+    avg_len: float | None = None,
 ) -> tuple[bool, float, list[str]]:
     """Prefix fallback scorer for single-token queries with zero exact hits.
 
@@ -157,6 +192,7 @@ def score_prefix_chunk(
     raw lowercased token, per existing normalization). Scoring mirrors the
     normal path: prefix-term frequency scaled by smoothed IDF plus the same
     single-term proximity bonus, so fallback hits sort like normal hits.
+    Pass `avg_len` for the same BM25 saturation/length-norm as `score_chunk`.
     """
     if not is_single_token_query(query):
         return False, 0, []
@@ -170,23 +206,53 @@ def score_prefix_chunk(
         return False, 0, []
     tf = sum(counts[t] for t in matched)
     df_t = max(1, df_prefix)
-    score = tf * math.log1p(n_docs / df_t)
+    idf = math.log1p(n_docs / df_t)
+    if avg_len is not None and avg_len > 0:
+        dl = doc_len if doc_len is not None else sum(counts.values())
+        tf_component = tf * (BM25_K1 + 1) / (tf + BM25_K1 * _length_norm(dl, avg_len))
+        score = tf_component * idf
+    else:
+        score = tf * idf
     # Single-term proximity bonus mirrors the normal path: one occurrence
     # always yields best_span 0, i.e. int(PROXIMITY_WINDOW / 3).
     score += int(PROXIMITY_WINDOW / 3)
     return True, score, matched
 
 
-def _tfidf(tf: int, term: str, df: dict[str, int] | None, n_docs: int) -> float:
+def _tfidf(
+    tf: int,
+    term: str,
+    df: dict[str, int] | None,
+    n_docs: int,
+    doc_len: int | None = None,
+    avg_len: float | None = None,
+) -> float:
     """Plain term frequency scaled by smoothed inverse document frequency.
 
     Uses smoothed IDF: log(1 + N/df). When df is unknown we fall back to raw tf
     so the function stays usable from tests that don't pre-compute df.
+
+    BM25 mode: when `avg_len` (>0) is given, TF saturates as
+    tf*(k1+1)/(tf+k1*norm) with norm = 1-b+b*dl/avg, multiplied by the same
+    IDF. Formula: score(t) = idf(t) * tf*(k1+1)/(tf+k1*(1-b+b*dl/avg)).
+    Focused short chunks (dl < avg) get norm < 1 (boost); long diluted chunks
+    get norm > 1 (penalty); repetition past ~k1 stops scaling linearly.
+    Defaults (no lengths) preserve the legacy linear behavior.
     """
+    use_bm25 = avg_len is not None and avg_len > 0
     if not df or term not in df:
-        return float(tf)
+        if not use_bm25:
+            return float(tf)
+        dl = doc_len if doc_len is not None else tf
+        norm = _length_norm(dl, avg_len)  # type: ignore[arg-type]
+        return tf * (BM25_K1 + 1) / (tf + BM25_K1 * norm)
     df_t = max(1, df[term])
-    return tf * math.log1p(n_docs / df_t)
+    idf = math.log1p(n_docs / df_t)
+    if not use_bm25:
+        return tf * idf
+    dl = doc_len if doc_len is not None else tf
+    norm = _length_norm(dl, avg_len)  # type: ignore[arg-type]
+    return idf * tf * (BM25_K1 + 1) / (tf + BM25_K1 * norm)
 
 
 def _proximity_bonus(lower: str, terms: list[str]) -> int:

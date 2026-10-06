@@ -9,7 +9,16 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Iterable, Iterator
 
 from core.models import Chunk, SearchHit
-from core.search import EmptyQuery, PHRASE_BONUS, ParsedQuery, parse_query, stem, stemmed_words
+from core.search import (
+    BM25_B,
+    BM25_K1,
+    EmptyQuery,
+    PHRASE_BONUS,
+    ParsedQuery,
+    parse_query,
+    stem,
+    stemmed_words,
+)
 
 if TYPE_CHECKING:
     from core.store import Store
@@ -140,10 +149,19 @@ def related_search(store: Store, notebook_id: str, query: str, *, kind: str | No
                  if (not kind or source.kind == kind) and (not ids or source.id in ids)
                  and (not wanted_tags or wanted_tags.intersection(source.tags))]
     resolver = TypoResolver(groups)
+    # BM25-style corpus stat: mean chunk length in stems, gathered during the
+    # existing observe pass so no extra hydration. Filters/ownership already
+    # applied via `summaries`.
+    total_len = 0
+    total_chunks = 0
     for order, source in enumerate(summaries):
         for chunk in _chunks(store, notebook_id, source.id):
-            resolver.observe(stemmed_words(chunk.text), order, chunk.text)
+            words = stemmed_words(chunk.text)
+            total_len += len(words)
+            total_chunks += 1
+            resolver.observe(words, order, chunk.text)
     groups = resolver.resolve()
+    avg_len = (total_len / total_chunks) if total_chunks else 0.0
     heap: list[tuple[float, int, int, int, SearchHit]] = []
     total = 0
     capacity = max(0, offset) + max(0, limit)
@@ -155,6 +173,13 @@ def related_search(store: Store, notebook_id: str, query: str, *, kind: str | No
             if any(phrase not in lower for phrase in parsed.phrases):
                 continue
             counts = Counter(stemmed_words(chunk.text))
+            doc_len = sum(counts.values())
+            # BM25 length norm: short focused chunks < 1 (boost), long > 1.
+            # Confidence tiers stay unnormalized so exact (1000) always beats
+            # expanded (100) beats typo (10); only the small TF tail is scaled.
+            norm = 1.0
+            if avg_len > 0:
+                norm = 1 - BM25_B + BM25_B * doc_len / avg_len
             matched: set[str] = set()
             score = 0.0
             for group in groups:
@@ -163,10 +188,14 @@ def related_search(store: Store, notebook_id: str, query: str, *, kind: str | No
                     continue
                 matched.update(found)
                 confidence = 10 if group.corrected else 1000 if group.term in found else 100
-                score += confidence + min(3, math.log1p(sum(counts[word] for word in found)))
+                tf_tail = min(3, math.log1p(sum(counts[word] for word in found))) / norm
+                score += confidence + tf_tail
             if not matched and not parsed.phrases:
                 continue
-            score += PHRASE_BONUS * sum(lower.count(phrase) for phrase in parsed.phrases)
+            for phrase in parsed.phrases:
+                count = lower.count(phrase)
+                # Saturate phrase repetition like the strict path.
+                score += PHRASE_BONUS * count * (BM25_K1 + 1) / (count + BM25_K1)
             snippet = _snippet(chunk.text, matched)
             key = (tuple(chunk.pages), hashlib.sha256(snippet.encode()).digest())
             if key in seen:
