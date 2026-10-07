@@ -9,7 +9,8 @@ Live state of the project. **Read this first** before doing anything.
 > native exam-coach alpha is implemented; additional feature screens still need
 > porting. Legacy frontend assets are excluded from packaging.
 > Mobile lives
-> in `research-mobile` and is paused while desktop work is the priority.
+> in `research-mobile`; a bounded Settings/style pass was resumed on
+> 2026-10-07, while desktop remains the priority.
 > Owner direction: hosted backend (`research-server`) with thin clients, App
 > Store later ($99 program budgeted then, not now). Login order: email (done)
 > → Google (implemented, client-ID config pending) → Apple last.
@@ -21,6 +22,21 @@ Live state of the project. **Read this first** before doing anything.
 > `5eef8ac fix: authenticate study exports` (cards TSV + mindmap exports,
 > same guarantees). Both carry frontend tests (`api.export.test.ts`,
 > `api.study-export.test.ts`); 401s clear the token and signal login.
+
+## Mobile Settings quality pass (2026-10-07)
+
+- Owner requested updating `research-mobile` alongside macOS. That separate
+  private repo now has a visible Settings entry, warm paper/sage styling,
+  account controls, sound, shared app/system reduced motion and a three-second
+  local loading preview. Optional Gemini/OpenRouter/Groq settings use the same
+  authenticated backend routes and preserve guest notebooks.
+- Mobile verification: 116 unit tests, TypeScript, 12 iPhone/Pixel browser
+  journeys and iOS/Android/web bundle export passed. Native device testing is
+  still required; no public release, upload or private hosted backend changes.
+  Details live in `research-mobile/docs/MOBILE_SETTINGS.md`.
+- The browser workspace stays paused. The owner's download-only question has
+  a recommendation for installed apps plus a small download/help website;
+  it does not authorize deleting the retained legacy source or publishing a site.
 
 ## Shared AI API entry point (2026-10-07)
 

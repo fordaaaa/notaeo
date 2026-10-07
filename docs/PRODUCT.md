@@ -115,7 +115,9 @@ provider billing or private research-server code is part of this work.
    Development previews and browser tests only maintain the legacy code.
 3. **iOS and Android live in the separate `research-mobile` repository.**
    Changes to this repo's React frontend do not automatically reach that app.
-   Mobile work is paused while the desktop experience is the priority.
+   Desktop remains the priority. Owner update, 2026-10-07: a bounded mobile
+   Settings, motion and styling pass is resumed in `research-mobile`; broader
+   mobile feature parity remains future work.
 - **Local-runtime boundary (desktop):** the sidecar binds `127.0.0.1` only
   on an ephemeral port; the shell passes a per-launch `RESEARCH_DESKTOP_TOKEN`
   sent as `X-Notaeo-Desktop-Token` in API-only native mode (constant-time
