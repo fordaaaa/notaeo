@@ -313,6 +313,29 @@ final class NotaeoAPI: NotebookSearching {
         return (reply.sources, reply.errors ?? [])
     }
 
+    // MARK: - Web discovery (GET /api/web/discover, public)
+
+    func discoverWeb(request: WebDiscoveryRequest) async throws -> WebDiscoveryPage {
+        var query: [String: String] = [
+            "q": request.query,
+            "limit": String(request.limit),
+            "engine": request.engine.rawValue,
+            "file_type": request.fileType.rawValue,
+            "academic": request.academic ? "true" : "false",
+            "recency": request.recency.rawValue,
+            "region": request.region.rawValue,
+        ]
+        if let domain = request.domain?.trimmingCharacters(in: .whitespacesAndNewlines), !domain.isEmpty {
+            query["domain"] = domain
+        }
+        let res = try await send(path: "api/web/discover", method: "GET", query: query)
+        return try decode(WebDiscoveryPage.self, from: res.data)
+    }
+
+    func importWebSource(notebookId: String, url: String) async throws -> PasteResult {
+        try await addURLSource(notebookId: notebookId, url: url, force: false)
+    }
+
     // MARK: - Coach
 
     func getCoachState(notebookId: String) async throws -> CoachState {

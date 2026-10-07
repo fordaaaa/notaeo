@@ -37,10 +37,12 @@ internal sealed class MainForm : Form
     private readonly TabControl _tabs = new() { Dock = DockStyle.Fill };
     private readonly SourcesPanel _sourcesPanel;
     private readonly SearchPanel _searchPanel;
+    private readonly WebDiscoveryPanel _discoveryPanel;
     private readonly CoachPanel _coachPanel;
     private readonly MindMapPanel _mindMapPanel;
     private readonly TabPage _sourcesTab = new("Sources");
     private readonly TabPage _searchTab = new("Search");
+    private readonly TabPage _discoveryTab = new("Discover");
     private readonly TabPage _mindMapTab = new("Mind map");
 
     private List<Notebook> _notebooks = [];
@@ -57,6 +59,8 @@ internal sealed class MainForm : Form
         _sourcesPanel = new SourcesPanel(() => _session.MakeApi(), _preferences);
         _searchPanel = new SearchPanel(() => _session.MakeApi(), _preferences);
         _searchPanel.OpenSourceRequested += async (sourceId, page) => await OpenSourceAsync(sourceId, page);
+        _discoveryPanel = new WebDiscoveryPanel(() => _session.MakeApi(), _preferences);
+        _discoveryPanel.OpenSourceRequested += async (sourceId, page) => await OpenSourceAsync(sourceId, page);
         _coachPanel = new CoachPanel(() => _session.MakeApi(), _preferences);
         _mindMapPanel = new MindMapPanel(() => _session.MakeApi(), _preferences);
         _mindMapPanel.OpenSourceRequested += async (sourceId, page) => await OpenSourceAsync(sourceId, page);
@@ -176,6 +180,7 @@ internal sealed class MainForm : Form
                 _selectedNotebookId = nb.Id;
                 var epoch = ++_notebookEpoch;
                 _searchPanel.BindNotebook(nb);
+                _discoveryPanel.BindNotebook(nb);
                 _coachPanel.ClearNotebook();
                 _mindMapPanel.BindNotebook(nb);
                 if (_tabs.SelectedTab == _mindMapTab) _mindMapPanel.Activate();
@@ -207,12 +212,15 @@ internal sealed class MainForm : Form
         _searchTab.Controls.Add(_searchPanel);
         _tabs.TabPages.Add(_sourcesTab);
         _tabs.TabPages.Add(_searchTab);
+        _discoveryTab.Controls.Add(_discoveryPanel);
+        _tabs.TabPages.Add(_discoveryTab);
         _mindMapTab.Controls.Add(_mindMapPanel);
         _tabs.TabPages.Add(_mindMapTab);
         _tabs.TabPages.Add(new TabPage("Exam coach") { Controls = { _coachPanel } });
         _tabs.SelectedIndexChanged += (_, _) =>
         {
             if (_tabs.SelectedTab != _searchTab) _searchPanel.Deactivate();
+            if (_tabs.SelectedTab != _discoveryTab) _discoveryPanel.Deactivate();
             if (_tabs.SelectedTab == _mindMapTab) _mindMapPanel.Activate();
             else _mindMapPanel.Deactivate();
         };
@@ -373,6 +381,7 @@ internal sealed class MainForm : Form
         _notebooks = [];
         _notebookList.Items.Clear();
         _searchPanel.BindNotebook(null);
+        _discoveryPanel.BindNotebook(null);
         _mindMapPanel.BindNotebook(null);
         _sourcesPanel.ClearNotebook();
         _coachPanel.ClearNotebook();

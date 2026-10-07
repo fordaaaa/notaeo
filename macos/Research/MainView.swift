@@ -14,6 +14,7 @@ struct MainView: View {
     @State private var sourceTarget: SourceOpenTarget?
     @State private var searchFocusVersion = 0
     @StateObject private var searchController = NativeSearchController()
+    @StateObject private var discoveryController = NativeDiscoveryController()
     @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
     @AppStorage("notaeo.native.reduceMotion") private var reduceMotion = false
 
@@ -21,7 +22,7 @@ struct MainView: View {
         NativeMotionPolicy(systemReduceMotion: systemReduceMotion, appReduceMotion: reduceMotion)
     }
 
-    enum Tab: String, CaseIterable { case sources = "Sources", search = "Search", mindmap = "Mind map", coach = "Exam coach" }
+    enum Tab: String, CaseIterable { case sources = "Sources", search = "Search", discover = "Discover", mindmap = "Mind map", coach = "Exam coach" }
 
     private struct SourceOpenTarget {
         let sourceId: String
@@ -37,13 +38,13 @@ struct MainView: View {
                     HStack(alignment: .center, spacing: 20) {
                         VStack(alignment: .leading, spacing: 4) {
                             Text(nb.name).font(NativeType.title).lineLimit(1)
-                            Text(tab == .sources ? "Make room for what you're learning." : tab == .search ? "Find it, then read it in context." : tab == .mindmap ? "See how your course material connects." : "One focused session at a time.")
+                            Text(tab == .sources ? "Make room for what you're learning." : tab == .search ? "Find it, then read it in context." : tab == .discover ? "Find useful sources for your course." : tab == .mindmap ? "See how your course material connects." : "One focused session at a time.")
                                 .font(NativeType.caption).foregroundStyle(.secondary)
                         }
                         Spacer(minLength: 12)
                         Picker("Notebook view", selection: $tab) {
                             ForEach(Tab.allCases, id: \.self) { Text($0.rawValue).tag($0) }
-                        }.pickerStyle(.segmented).labelsHidden().frame(width: 390)
+                        }.pickerStyle(.segmented).labelsHidden().frame(width: 490)
                     }
                     .padding(.horizontal, 24).padding(.vertical, 18)
                     .background(NativePalette.surface)
@@ -56,6 +57,11 @@ struct MainView: View {
                         case .search:
                             SearchView(notebook: nb, focusVersion: searchFocusVersion, controller: searchController) { hit in
                                 sourceTarget = SourceOpenTarget(sourceId: hit.sourceId, page: hit.pages.first)
+                                tab = .sources
+                            }.id(nb.id).transition(motion.transition)
+                        case .discover:
+                            DiscoveryView(notebook: nb, controller: discoveryController) { sourceId in
+                                sourceTarget = SourceOpenTarget(sourceId: sourceId, page: nil)
                                 tab = .sources
                             }.id(nb.id).transition(motion.transition)
                         case .coach: CoachView(notebook: nb).id(nb.id).transition(motion.transition)
@@ -75,7 +81,9 @@ struct MainView: View {
         .font(NativeType.body)
         .background(NativePalette.canvas)
         .task { await reload() }
-        .onChange(of: selectedId) { _, _ in sourceTarget = nil; searchController.clear() }
+        .onChange(of: appState.accountToken, initial: true) { _, token in discoveryController.bindAccount(token) }
+        .onChange(of: selectedId) { _, _ in sourceTarget = nil; searchController.clear(); discoveryController.clear() }
+        .onDisappear { discoveryController.cancel() }
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Button {

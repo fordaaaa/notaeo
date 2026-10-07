@@ -799,3 +799,38 @@ class ClassroomSyncResult(BaseModel):
     classes_synced: int
     assignments_synced: int
     assignments_skipped: int
+
+
+WebDiscoveryEngine = Literal["auto", "google", "duckduckgo", "brave", "mojeek"]
+
+WebDiscoveryFileType = Literal["all", "pdf", "html"]
+
+WebDiscoveryRecency = Literal["any", "day", "week", "month", "year"]
+
+WebDiscoveryRegion = Literal["us-en", "ca-en", "uk-en", "au-en"]
+
+
+class WebDiscoveryResult(BaseModel):
+    title: str
+    url: str
+    snippet: str
+    domain: str
+    file_type: Literal["pdf", "html"]
+    score: float
+
+
+class WebDiscoveryFilters(BaseModel):
+    domain: str | None = None
+    file_type: WebDiscoveryFileType = "all"
+    academic: bool = False
+    recency: WebDiscoveryRecency = "any"
+    region: WebDiscoveryRegion = "us-en"
+
+
+class WebDiscoveryResponse(BaseModel):
+    query: str
+    effective_query: str
+    engine: WebDiscoveryEngine
+    results: list[WebDiscoveryResult]
+    took_ms: int
+    filters: WebDiscoveryFilters

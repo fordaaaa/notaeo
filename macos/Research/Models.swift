@@ -196,6 +196,115 @@ struct AISettings: Codable, Equatable, Sendable {
     var model: String?
 }
 
+// MARK: - Web discovery (mirrors GET /api/web/discover)
+
+enum WebDiscoveryEngine: String, Codable, CaseIterable, Equatable, Sendable {
+    case auto
+    case google
+    case duckduckgo
+    case brave
+    case mojeek
+
+    var label: String {
+        switch self {
+        case .auto: return "Automatic"
+        case .google: return "Google"
+        case .duckduckgo: return "DuckDuckGo"
+        case .brave: return "Brave"
+        case .mojeek: return "Mojeek"
+        }
+    }
+}
+
+enum WebDiscoveryFileType: String, Codable, CaseIterable, Equatable, Sendable {
+    case all
+    case pdf
+    case html
+
+    var label: String {
+        switch self {
+        case .all: return "All pages"
+        case .pdf: return "PDF links"
+        case .html: return "Web pages"
+        }
+    }
+}
+
+enum WebDiscoveryRecency: String, Codable, CaseIterable, Equatable, Sendable {
+    case any
+    case day
+    case week
+    case month
+    case year
+
+    var label: String {
+        switch self {
+        case .any: return "Any time"
+        case .day: return "Past day"
+        case .week: return "Past week"
+        case .month: return "Past month"
+        case .year: return "Past year"
+        }
+    }
+}
+
+enum WebDiscoveryRegion: String, Codable, CaseIterable, Equatable, Sendable {
+    case usEN = "us-en"
+    case caEN = "ca-en"
+    case ukEN = "uk-en"
+    case auEN = "au-en"
+
+    var label: String {
+        switch self {
+        case .usEN: return "US (English)"
+        case .caEN: return "Canada (English)"
+        case .ukEN: return "UK (English)"
+        case .auEN: return "Australia (English)"
+        }
+    }
+}
+
+struct WebDiscoveryRequest: Equatable, Sendable {
+    var query: String
+    var limit: Int = 20
+    var engine: WebDiscoveryEngine = .auto
+    var domain: String? = nil
+    var fileType: WebDiscoveryFileType = .all
+    var academic: Bool = false
+    var recency: WebDiscoveryRecency = .any
+    var region: WebDiscoveryRegion = .usEN
+}
+
+struct WebDiscoveryResult: Decodable, Equatable, Sendable {
+    var title: String
+    var url: String
+    var snippet: String
+    var domain: String
+    var fileType: String
+    var score: Double
+
+    var isPDF: Bool { fileType.lowercased() == "pdf" }
+
+    var typeLabel: String { isPDF ? "PDF link" : "Web page" }
+}
+
+struct WebDiscoveryFilters: Decodable, Equatable, Sendable {
+    var domain: String?
+    var fileType: String
+    var academic: Bool
+    var recency: String
+    var region: String
+}
+
+struct WebDiscoveryPage: Decodable, Equatable, Sendable {
+    var query: String
+    var effectiveQuery: String
+    var engine: String
+    var results: [WebDiscoveryResult]
+    var tookMs: Int
+    var filters: WebDiscoveryFilters
+}
+
 // MARK: - Coach helpers (resume/next-question logic shared by app + tests)
 
 enum CoachLogic {

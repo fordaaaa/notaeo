@@ -176,3 +176,42 @@ public sealed record MindMapNode(
     [property: JsonPropertyName("pages")] List<int> Pages);
 
 public sealed record MindMapExport(byte[] Data, string Filename);
+
+public sealed record WebDiscoveryRequest(
+    string Query,
+    int Limit = 20,
+    string Engine = "auto",
+    string? Domain = null,
+    string FileType = "all",
+    bool Academic = false,
+    string Recency = "any",
+    string? Region = "us-en");
+
+public sealed record WebDiscoveryResult(
+    [property: JsonPropertyName("title")] string Title,
+    [property: JsonPropertyName("url")] string Url,
+    [property: JsonPropertyName("snippet")] string Snippet,
+    [property: JsonPropertyName("domain")] string Domain,
+    [property: JsonPropertyName("file_type")] string FileType,
+    [property: JsonPropertyName("score")] double Score)
+{
+    [System.Text.Json.Serialization.JsonIgnore]
+    public string TypeLabel => string.Equals(FileType, "pdf", StringComparison.OrdinalIgnoreCase)
+        ? "PDF link"
+        : "Web page";
+}
+
+public sealed record WebDiscoveryFilters(
+    [property: JsonPropertyName("domain")] string? Domain,
+    [property: JsonPropertyName("file_type")] string FileType,
+    [property: JsonPropertyName("academic")] bool Academic,
+    [property: JsonPropertyName("recency")] string Recency,
+    [property: JsonPropertyName("region")] string? Region);
+
+public sealed record WebDiscoveryPage(
+    [property: JsonPropertyName("query")] string Query,
+    [property: JsonPropertyName("effective_query")] string EffectiveQuery,
+    [property: JsonPropertyName("engine")] string Engine,
+    [property: JsonPropertyName("results")] List<WebDiscoveryResult> Results,
+    [property: JsonPropertyName("took_ms")] int TookMs,
+    [property: JsonPropertyName("filters")] WebDiscoveryFilters Filters);

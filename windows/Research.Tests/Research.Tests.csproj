@@ -28,6 +28,7 @@
     <Compile Include="..\Research\SourceReaderDocument.cs" Link="Shell\SourceReaderDocument.cs" />
     <Compile Include="..\Research\SearchController.cs" Link="Shell\SearchController.cs" />
     <Compile Include="..\Research\MindMapLayout.cs" Link="Shell\MindMapLayout.cs" />
+    <Compile Include="..\Research\WebDiscoveryController.cs" Link="Shell\WebDiscoveryController.cs" />
   </ItemGroup>
 
   <ItemGroup>

@@ -841,6 +841,34 @@ public sealed class NotaeoApi
         return Decode<SearchPage>(body);
     }
 
+    public async Task<WebDiscoveryPage> DiscoverWebAsync(WebDiscoveryRequest request, CancellationToken ct = default)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        var query = new Dictionary<string, string>
+        {
+            ["q"] = request.Query,
+            ["limit"] = request.Limit.ToString(),
+            ["engine"] = request.Engine,
+            ["file_type"] = request.FileType,
+            ["academic"] = request.Academic ? "true" : "false",
+            ["recency"] = request.Recency,
+        };
+        if (!string.IsNullOrWhiteSpace(request.Domain))
+        {
+            query["domain"] = request.Domain.Trim();
+        }
+
+        if (!string.IsNullOrWhiteSpace(request.Region))
+        {
+            query["region"] = request.Region.Trim();
+        }
+
+        var (body, _, _) = await SendRawAsync(
+            "api/web/discover", HttpMethod.Get,
+            query: query, ct: ct).ConfigureAwait(false);
+        return Decode<WebDiscoveryPage>(body);
+    }
+
     public async Task<MindMapNode> GetMindMapAsync(string notebookId, CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(notebookId))
