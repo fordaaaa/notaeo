@@ -22,6 +22,54 @@ Live state of the project. **Read this first** before doing anything.
 > same guarantees). Both carry frontend tests (`api.export.test.ts`,
 > `api.study-export.test.ts`); 401s clear the token and signal login.
 
+## Native discovery and educational-site index (2026-10-07)
+
+- macOS and Windows now have native Discover: submitted query, engine choice,
+  site, page/PDF type, academic scope, recency and region. Notaeo ranks and
+  deduplicates bounded live candidates with deterministic topic scores. The
+  existing `/api/web/search` stays compatible; `/api/web/discover` returns
+  typed filters/results. Live discovery needs no AI key. Google uses the
+  existing DDGS adapter; the live Google check returned a safe 503, so direct
+  retrieval is best effort. The deliberate Open in Google action remains
+  available after search failure and sends only the submitted query/site/type.
+- Both native apps have Site index: add an educational HTTPS starting URL,
+  explicitly Refresh, inspect page count/status, remove. Adding/listing never
+  crawls. Refresh honors robots, exact origin/path, DNS/private-address checks,
+  redirects, two MiB streamed responses, five pages, depth two, a 50-entry queue
+  and a 20-second scheduling/reading budget (DNS/OS resolution may overrun).
+  Robots redirects fail closed. The cache supports at most 20 sites per user.
+- Indexed sites in Discover searches owned cached article passages offline,
+  with the same ranking/domain/type/academic filters. Recency is unavailable
+  for this engine. Index tables are additive SQLite schema in app.db, with
+  composite owner FK, cascade delete and claimed-revision atomic replacement.
+  Failed refresh preserves prior pages; overlapping refresh/delete cannot
+  resurrect or overwrite newer content. Runtime privacy metadata now lists
+  explicit site refresh as a network action. No automatic crawl or AI request.
+- Article Import uses existing authenticated HTTPS HTML ingestion, keeps
+  duplicate protection, and offers Open source. PDF links explain download
+  followed by Sources upload; HTTP links offer browser opening only. Indexed
+  snippets work offline, while importing their live article still needs network.
+  Loading uses current reduced-motion-aware orbs; cancellation stops native
+  waiting and invalidates late updates, while a bounded server refresh may finish.
+- OpenCode independently approved both specs, implemented the backend and
+  native units, then reviewed final code. Root added regressions for encoded
+  slash dedupe, operator-only queries, IDNA, account reset, Google error fallback,
+  raw URL controls, slow stream deadlines and explicit egress metadata. Native
+  final review caught the Google error action and account lifetime before fixes.
+- Verification: full backend **457 passed**, full macOS XCTest **82 passed**,
+  Windows portable suite **166 passed**; Windows Release **0 warnings/errors**,
+  self-contained win-x64 cross-publish and signed arm64 macOS package passed.
+  Actual shipping C# API client against a disposable packaged loopback sidecar
+  verified cached full-text passages, filters, site add/list/delete, 204 cascade,
+  account-isolated cache/listing, missing account 401 and foreign-owner 404.
+  This probe made no public network requests. The deterministic crawler suite
+  uses fake transport/clock; real-site access depends on robots and availability.
+  Physical WinForms layout/accessibility, real DPAPI and Windows sidecar launch
+  still require a Windows machine. No private research-server changes or deploy.
+- Specs: `docs/WEB_DISCOVERY.md`, `docs/EDUCATIONAL_INDEX.md`. Next: manually try
+  course-specific queries and small allowed site refreshes on the installed apps;
+  expand index coverage/incremental crawling only after reviewing the limits.
+
 ## Windows study workspace parity (2026-10-06)
 
 - Windows now includes native Search (Ctrl+F), source sorting/import dates,

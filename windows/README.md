@@ -8,7 +8,8 @@ FastAPI sidecar (`backend/desktop.py`) as a pure JSON API.
   `AssemblyName Notaeo`. No `Microsoft.Web.WebView2` dependency.
   Native controls throughout: login/register, notebooks sidebar + create,
   sources list/read/paste/upload with persistent date/name/type sorting,
-  paginated Search (Ctrl+F), cited Mind map with graph/outline/Markdown export,
+  paginated Search (Ctrl+F), Discover with live/indexed search and filters,
+  account-owned Site index with explicit five-page refresh, cited Mind map with graph/outline/Markdown export,
   exam coach (goal/save/build/select/start/
   resume/write/reveal/self-rate/finish/history/AI explanations), and native
   Settings (actual `/api/settings/ai` provider settings + sign out, available
@@ -18,7 +19,7 @@ FastAPI sidecar (`backend/desktop.py`) as a pure JSON API.
   units. It links the actual shipping sources (`DesktopStartup`, `Models`,
   `ApiClient`, `CoachLogic`, `SessionStore`, `BackendProcess`, `UploadPolicy`,
   `PendingGuard`, `SourceOrdering`, `WorkspacePreferences`, `ThinkingOrbMotion`,
-  `SourceReaderDocument`, `SearchController`, `MindMapLayout`) and exercises them through `HttpMessageHandler` fakes and
+  `SourceReaderDocument`, `SearchController`, `MindMapLayout`, `WebDiscoveryController`, `SiteIndexController`) and exercises them through `HttpMessageHandler` fakes and
   real owned `/bin/sh` processes: auth headers, snake_case bodies, error
   mapping, register duplicate, coach resume/next-question, explanation
   decoding, authenticated notebook ZIP export bytes, DPAPI-shape token storage
@@ -26,7 +27,8 @@ FastAPI sidecar (`backend/desktop.py`) as a pure JSON API.
   401 expiry callback matching, pending-guard duplicate-write prevention, and
   backend READY/timeout/stale-sender lifecycle, paginated search/map contracts,
   cancellation races, source/page offsets, natural/date sorting, motion bounds
-  and graph layout/zoom/collapse. 109 tests green on macOS
+  and graph layout/zoom/collapse, public-web search filters/import/browser links,
+  site-index CRUD/refresh transport and account/cancellation isolation. 166 tests green on macOS
   (`dotnet test`); WinForms panels themselves are compile-checked only.
 
 Build (on Windows): `powershell -ExecutionPolicy Bypass -File scripts/build_windows_app.ps1`
