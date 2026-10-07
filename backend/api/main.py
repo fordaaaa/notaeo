@@ -33,6 +33,7 @@ from api import (
     research,
     review,
     search,
+    siteindex,
     skills,
     sources,
     study,
@@ -147,6 +148,7 @@ def create_app(web_dir: Path | None = None) -> FastAPI:
     sources.register(app)
     search.register(app)
     web.register(app)
+    siteindex.register(app)
     ai.register(app)
     humanize.register(app)
     skills.register(app)

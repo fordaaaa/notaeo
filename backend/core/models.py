@@ -801,7 +801,21 @@ class ClassroomSyncResult(BaseModel):
     assignments_skipped: int
 
 
-WebDiscoveryEngine = Literal["auto", "google", "duckduckgo", "brave", "mojeek"]
+WebDiscoveryEngine = Literal["auto", "google", "duckduckgo", "brave", "mojeek", "index"]
+
+
+class SiteIndexSite(BaseModel):
+    id: str
+    url: str
+    created_at: str
+    indexed_at: str | None = None
+    page_count: int
+    notice: str
+    revision: int
+
+
+class SiteIndexCreate(BaseModel):
+    url: str = Field(min_length=5, max_length=2000)
 
 WebDiscoveryFileType = Literal["all", "pdf", "html"]
 

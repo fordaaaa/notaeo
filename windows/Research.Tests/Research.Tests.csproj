@@ -29,6 +29,7 @@
     <Compile Include="..\Research\SearchController.cs" Link="Shell\SearchController.cs" />
     <Compile Include="..\Research\MindMapLayout.cs" Link="Shell\MindMapLayout.cs" />
     <Compile Include="..\Research\WebDiscoveryController.cs" Link="Shell\WebDiscoveryController.cs" />
+    <Compile Include="..\Research\SiteIndexController.cs" Link="Shell\SiteIndexController.cs" />
   </ItemGroup>
 
   <ItemGroup>

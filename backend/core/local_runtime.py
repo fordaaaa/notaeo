@@ -5,7 +5,7 @@ FastAPI backend as a loopback sidecar; this module states that boundary in
 one place so the `/api/runtime` route, docs, and tests cannot drift apart.
 
 Network egress is explicit-only: web search, URL ingest, BYOK AI, and Google
-OAuth each run solely on a direct user action. There is no implicit sync,
+OAuth and educational-site refresh each run solely on a direct user action. There is no implicit sync,
 telemetry, proxy, or evasion behavior.
 """
 from __future__ import annotations
@@ -13,6 +13,7 @@ from __future__ import annotations
 EXPLICIT_EGRESS: tuple[str, ...] = (
     "web-search-explicit",
     "url-ingest-explicit",
+    "site-index-refresh-explicit",
     "byok-ai-explicit",
     "google-oauth-explicit",
 )

@@ -263,10 +263,37 @@ CREATE TABLE IF NOT EXISTS coach_sessions (
 );
 CREATE INDEX IF NOT EXISTS idx_coach_sessions_owner ON coach_sessions(user_id, notebook_id, created_at DESC);
 CREATE UNIQUE INDEX IF NOT EXISTS idx_coach_active ON coach_sessions(user_id, notebook_id) WHERE status = 'active';
+CREATE TABLE IF NOT EXISTS web_index_sites (
+    id TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    url TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    indexed_at TEXT,
+    revision INTEGER NOT NULL DEFAULT 0,
+    notice TEXT NOT NULL DEFAULT '',
+    UNIQUE(id, user_id),
+    UNIQUE(user_id, url)
+);
+CREATE INDEX IF NOT EXISTS idx_web_index_sites_user ON web_index_sites(user_id);
+CREATE TABLE IF NOT EXISTS web_index_pages (
+    site_id TEXT NOT NULL,
+    user_id TEXT NOT NULL,
+    url TEXT NOT NULL,
+    title TEXT NOT NULL DEFAULT '',
+    text TEXT NOT NULL DEFAULT '',
+    indexed_at TEXT NOT NULL,
+    PRIMARY KEY(site_id, url),
+    FOREIGN KEY(site_id, user_id) REFERENCES web_index_sites(id, user_id) ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS idx_web_index_pages_user ON web_index_pages(user_id);
 """
 
 
 class CoachConflict(ValueError):
+    pass
+
+
+class IndexConflict(ValueError):
     pass
 
 
@@ -1667,6 +1694,176 @@ class Store:
             offset=offset,
         )
         return hits
+
+    # ---------- selected educational-site index ----------
+
+    IndexConflict = IndexConflict
+
+    @staticmethod
+    def _index_site_dict(row: Any, page_count: int) -> dict[str, Any]:
+        return {
+            "id": row["id"],
+            "url": row["url"],
+            "created_at": row["created_at"],
+            "indexed_at": row["indexed_at"],
+            "page_count": page_count,
+            "notice": row["notice"] or "",
+            "revision": int(row["revision"]),
+        }
+
+    def create_index_site(self, user_id: str, url: str) -> dict[str, Any]:
+        from core.store import new_id as _new_id  # local to avoid cycles
+        from core.models import utcnow as _utcnow
+
+        with self._connect() as con:
+            con.execute("BEGIN IMMEDIATE")
+            existing = con.execute(
+                "SELECT * FROM web_index_sites WHERE user_id = ? AND url = ?",
+                (user_id, url),
+            ).fetchone()
+            if existing:
+                count = con.execute(
+                    "SELECT COUNT(*) AS n FROM web_index_pages WHERE site_id = ? AND user_id = ?",
+                    (existing["id"], user_id),
+                ).fetchone()["n"]
+                return self._index_site_dict(existing, int(count))
+            total = con.execute(
+                "SELECT COUNT(*) AS n FROM web_index_sites WHERE user_id = ?",
+                (user_id,),
+            ).fetchone()["n"]
+            if int(total) >= 20:
+                raise ValueError("site limit reached")
+            site_id = _new_id()
+            created = _utcnow().isoformat()
+            con.execute(
+                "INSERT INTO web_index_sites (id, user_id, url, created_at, indexed_at, revision, notice)"
+                " VALUES (?, ?, ?, ?, NULL, 0, '')",
+                (site_id, user_id, url, created),
+            )
+            row = con.execute(
+                "SELECT * FROM web_index_sites WHERE id = ? AND user_id = ?",
+                (site_id, user_id),
+            ).fetchone()
+            return self._index_site_dict(row, 0)
+
+    def list_index_sites(self, user_id: str) -> list[dict[str, Any]]:
+        with self._connect() as con:
+            rows = con.execute(
+                "SELECT * FROM web_index_sites WHERE user_id = ? ORDER BY created_at",
+                (user_id,),
+            ).fetchall()
+            out: list[dict[str, Any]] = []
+            for row in rows:
+                count = con.execute(
+                    "SELECT COUNT(*) AS n FROM web_index_pages WHERE site_id = ? AND user_id = ?",
+                    (row["id"], user_id),
+                ).fetchone()["n"]
+                out.append(self._index_site_dict(row, int(count)))
+            return out
+
+    def get_index_site(self, user_id: str, site_id: str) -> dict[str, Any] | None:
+        with self._connect() as con:
+            row = con.execute(
+                "SELECT * FROM web_index_sites WHERE id = ? AND user_id = ?",
+                (site_id, user_id),
+            ).fetchone()
+            if not row:
+                return None
+            count = con.execute(
+                "SELECT COUNT(*) AS n FROM web_index_pages WHERE site_id = ? AND user_id = ?",
+                (site_id, user_id),
+            ).fetchone()["n"]
+            return self._index_site_dict(row, int(count))
+
+    def delete_index_site(self, user_id: str, site_id: str) -> bool:
+        with self._connect() as con:
+            cur = con.execute(
+                "DELETE FROM web_index_sites WHERE id = ? AND user_id = ?",
+                (site_id, user_id),
+            )
+            return cur.rowcount > 0
+
+    def claim_index_refresh(self, user_id: str, site_id: str) -> int:
+        with self._connect() as con:
+            con.execute("BEGIN IMMEDIATE")
+            row = con.execute(
+                "SELECT revision FROM web_index_sites WHERE id = ? AND user_id = ?",
+                (site_id, user_id),
+            ).fetchone()
+            if not row:
+                raise KeyError("site not found")
+            claimed = int(row["revision"]) + 1
+            con.execute(
+                "UPDATE web_index_sites SET revision = ? WHERE id = ? AND user_id = ?",
+                (claimed, site_id, user_id),
+            )
+            return claimed
+
+    def replace_index_pages(
+        self,
+        user_id: str,
+        site_id: str,
+        expected_revision: int,
+        pages: list[dict[str, Any]],
+        indexed_at: str,
+        notice: str,
+    ) -> dict[str, Any]:
+        if not pages:
+            raise ValueError("no pages to store")
+        with self._connect() as con:
+            con.execute("BEGIN IMMEDIATE")
+            row = con.execute(
+                "SELECT * FROM web_index_sites WHERE id = ? AND user_id = ?",
+                (site_id, user_id),
+            ).fetchone()
+            if not row:
+                raise KeyError("site not found")
+            if int(row["revision"]) != int(expected_revision):
+                raise IndexConflict("site was modified concurrently")
+            con.execute(
+                "DELETE FROM web_index_pages WHERE site_id = ? AND user_id = ?",
+                (site_id, user_id),
+            )
+            for page in pages:
+                con.execute(
+                    "INSERT INTO web_index_pages (site_id, user_id, url, title, text, indexed_at)"
+                    " VALUES (?, ?, ?, ?, ?, ?)",
+                    (
+                        site_id,
+                        user_id,
+                        str(page.get("url", "")),
+                        str(page.get("title", "") or ""),
+                        str(page.get("text", "") or ""),
+                        indexed_at,
+                    ),
+                )
+            con.execute(
+                "UPDATE web_index_sites SET indexed_at = ?, notice = ? WHERE id = ? AND user_id = ?",
+                (indexed_at, notice, site_id, user_id),
+            )
+            updated = con.execute(
+                "SELECT * FROM web_index_sites WHERE id = ? AND user_id = ?",
+                (site_id, user_id),
+            ).fetchone()
+            return self._index_site_dict(updated, len(pages))
+
+    def list_index_pages(self, user_id: str) -> list[dict[str, Any]]:
+        with self._connect() as con:
+            rows = con.execute(
+                "SELECT site_id, url, title, text, indexed_at FROM web_index_pages"
+                " WHERE user_id = ? ORDER BY site_id, url",
+                (user_id,),
+            ).fetchall()
+            return [
+                {
+                    "site_id": r["site_id"],
+                    "url": r["url"],
+                    "title": r["title"],
+                    "text": r["text"],
+                    "indexed_at": r["indexed_at"],
+                }
+                for r in rows
+            ]
 
 
 def _user_from_row(row: Any) -> User:

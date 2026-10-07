@@ -62,6 +62,7 @@ internal sealed class WebDiscoveryPanel : UserControl
         _engineBox.Items.Add("DuckDuckGo");
         _engineBox.Items.Add("Brave");
         _engineBox.Items.Add("Mojeek");
+        _engineBox.Items.Add("Indexed sites");
         _engineBox.SelectedIndex = 0;
         _engineBox.AccessibleName = "Search engine";
 
@@ -104,7 +105,7 @@ internal sealed class WebDiscoveryPanel : UserControl
             Padding = new Padding(10),
         };
         flow.Controls.Add(new Label { Text = "Discover sources on the public web", AutoSize = true, Font = new Font(FontFamily.GenericSansSerif, 12, System.Drawing.FontStyle.Bold) });
-        flow.Controls.Add(new Label { Text = "Find useful course sources on the public web.", AutoSize = true, MaximumSize = new Size(640, 0) });
+        flow.Controls.Add(new Label { Text = "Find useful course sources on the web or in your indexed sites.", AutoSize = true, MaximumSize = new Size(640, 0) });
         flow.Controls.Add(BuildSearchBox());
         flow.Controls.Add(_validationLabel);
         flow.Controls.Add(_searchOrb);
@@ -125,6 +126,12 @@ internal sealed class WebDiscoveryPanel : UserControl
         scroll.Controls.Add(flow);
         Controls.Add(scroll);
 
+        _engineBox.SelectedIndexChanged += (_, _) =>
+        {
+            var indexed = SelectedEngine() == "index";
+            _recencyBox.Enabled = !indexed;
+            if (indexed) _recencyBox.SelectedIndex = 0;
+        };
         _queryBox.TextChanged += (_, _) => UpdateSearchEnabled();
         _queryBox.KeyDown += async (s, e) =>
         {
@@ -237,6 +244,7 @@ internal sealed class WebDiscoveryPanel : UserControl
 
     private string SelectedEngine() => _engineBox.SelectedIndex switch
     {
+        5 => "index",
         1 => "google",
         2 => "duckduckgo",
         3 => "brave",
@@ -276,6 +284,7 @@ internal sealed class WebDiscoveryPanel : UserControl
 
     private static string EngineLabel(string engine) => engine switch
     {
+        "index" => "Indexed sites",
         "google" => "Google",
         "duckduckgo" => "DuckDuckGo",
         "brave" => "Brave",
@@ -310,7 +319,7 @@ internal sealed class WebDiscoveryPanel : UserControl
         Domain: SiteDomain(),
         FileType: SelectedFileType(),
         Academic: _academicBox.Checked,
-        Recency: SelectedRecency(),
+        Recency: SelectedEngine() == "index" ? "any" : SelectedRecency(),
         Region: SelectedRegion());
 
     private async Task SubmitAsync()

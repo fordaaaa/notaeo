@@ -215,3 +215,12 @@ public sealed record WebDiscoveryPage(
     [property: JsonPropertyName("results")] List<WebDiscoveryResult> Results,
     [property: JsonPropertyName("took_ms")] int TookMs,
     [property: JsonPropertyName("filters")] WebDiscoveryFilters Filters);
+
+public sealed record SiteIndexSite(
+    [property: JsonPropertyName("id")] string Id,
+    [property: JsonPropertyName("url")] string Url,
+    [property: JsonPropertyName("created_at")] string CreatedAt,
+    [property: JsonPropertyName("indexed_at")] string? IndexedAt,
+    [property: JsonPropertyName("page_count")] int PageCount,
+    [property: JsonPropertyName("notice")] string Notice,
+    [property: JsonPropertyName("revision")] int Revision);

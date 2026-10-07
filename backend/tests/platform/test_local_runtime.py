@@ -77,6 +77,7 @@ def test_runtime_boundary_needs_desktop_cookie_but_no_login(tmp_path, monkeypatc
         assert body["ai_required"] is False
         assert "web-search-explicit" in body["network_egress"]
         assert "url-ingest-explicit" in body["network_egress"]
+        assert "site-index-refresh-explicit" in body["network_egress"]
         assert "byok-ai-explicit" in body["network_egress"]
         assert "google-oauth-explicit" in body["network_egress"]
         dumped = str(body).lower()

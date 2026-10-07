@@ -204,6 +204,7 @@ enum WebDiscoveryEngine: String, Codable, CaseIterable, Equatable, Sendable {
     case duckduckgo
     case brave
     case mojeek
+    case index
 
     var label: String {
         switch self {
@@ -212,6 +213,7 @@ enum WebDiscoveryEngine: String, Codable, CaseIterable, Equatable, Sendable {
         case .duckduckgo: return "DuckDuckGo"
         case .brave: return "Brave"
         case .mojeek: return "Mojeek"
+        case .index: return "Indexed sites"
         }
     }
 }
@@ -303,6 +305,18 @@ struct WebDiscoveryPage: Decodable, Equatable, Sendable {
     var results: [WebDiscoveryResult]
     var tookMs: Int
     var filters: WebDiscoveryFilters
+}
+
+// MARK: - Educational site index (mirrors GET /api/web/index/sites)
+
+struct SiteIndexSite: Codable, Identifiable, Equatable, Sendable {
+    var id: String
+    var url: String
+    var createdAt: String
+    var indexedAt: String?
+    var pageCount: Int
+    var notice: String
+    var revision: Int
 }
 
 // MARK: - Coach helpers (resume/next-question logic shared by app + tests)

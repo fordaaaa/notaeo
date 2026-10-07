@@ -241,7 +241,7 @@ final class NativeDiscoveryStateTests: XCTestCase {
         let service = DelayedDiscoveryService()
         let controller = NativeDiscoveryController()
         controller.bindAccount("account-a")
-        let task = Task { await controller.search(notebookId: "same-course", request: WebDiscoveryRequest(query: "private-query", engine: .auto), using: service) }
+        let task = Task { await controller.search(notebookId: "same-course", request: WebDiscoveryRequest(query: "private-query", engine: .index), using: service) }
         try await waitForSearch("private-query", service: service)
         controller.bindAccount("account-b")
         await service.resolveSearch("private-query")

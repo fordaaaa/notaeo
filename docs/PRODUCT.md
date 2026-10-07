@@ -49,6 +49,26 @@ notifications require explicit consent and should not become a requirement
 for local study. Proposed copy, demo, and acceptance criteria:
 [Notaeo exam-coach draft](NOTAEO_DIRECTION_DRAFT.md).
 
+## Web research and selected-site indexing
+
+Owner update, 2026-10-07: native Discover combines public-web search with
+Notaeo filtering/ranking and an account-owned index of selected educational
+sites. Choose starting pages and explicitly refresh their bounded index;
+search cached passages locally. Index refresh respects robots rules, stays in
+site/path scope, and stores pages in the owner's SQLite file. It never starts
+on launch, tab selection, filter changes or ordinary indexed search.
+
+Live engines use the existing keyless DDGS adapter. Google public-web retrieval
+is best effort; its official Custom Search JSON API is closed to new customers
+and ends for existing users on January 1, 2027. Open in Google is a deliberate
+browser action. A selected-site index and provider-backed web results do not
+imply an independent index of the entire web. PDF search links are downloadable;
+existing direct URL ingestion accepts HTTPS web articles.
+
+Implementation specs: [Web discovery](WEB_DISCOVERY.md) and
+[Educational-site index](EDUCATIONAL_INDEX.md). No hosted account infrastructure,
+provider billing or private research-server code is part of this work.
+
 ## Public vs. private boundary
 
 - **This repo (`research`, public, MIT)** holds the complete useful
@@ -103,7 +123,7 @@ for local study. Proposed copy, demo, and acceptance criteria:
   every data route still requires the account Bearer token. Desktop builds
   are same-origin only (no Vite CORS origin). `GET /api/runtime` states this
   boundary with no user data. Network egress stays explicit-only: web
-  search, URL ingest, BYOK AI, and Google OAuth run solely on direct user
+  search, educational-index refresh, URL ingest, BYOK AI, and Google OAuth run solely on direct user
   action over HTTPS — no implicit sync, telemetry, proxy, or evasion.
 - The Apple Developer Program ($99/yr) is budgeted only when App Store
   submission approaches — never as a build prerequisite.

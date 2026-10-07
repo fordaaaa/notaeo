@@ -223,7 +223,7 @@ struct DiscoveryView: View {
             VStack(alignment: .leading, spacing: 20) {
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Discover the public web").font(NativeType.title)
-                    Text("Find useful course material on the web, then import an article.")
+                    Text("Find useful course material on the web or in your indexed sites, then import an article.")
                         .font(NativeType.body).foregroundStyle(.secondary)
                 }
                 searchCard
@@ -234,7 +234,7 @@ struct DiscoveryView: View {
                 }
                 if controller.isLoading {
                     HStack {
-                        NativeAIActivity(label: "Searching the public web…")
+                        NativeAIActivity(label: controller.lastRequest?.engine == .index ? "Searching indexed pages…" : "Searching the public web…")
                         Spacer()
                         Button("Cancel") { cancelSearch() }
                             .accessibilityLabel("Cancel web search")
@@ -275,6 +275,7 @@ struct DiscoveryView: View {
             domain = ""
             controller.bindAccount(token)
         }
+        .onChange(of: engine) { _, value in if value == .index { recency = .any } }
     }
 
     private var searchCard: some View {
@@ -297,6 +298,7 @@ struct DiscoveryView: View {
                         Text("DuckDuckGo").tag(WebDiscoveryEngine.duckduckgo)
                         Text("Brave").tag(WebDiscoveryEngine.brave)
                         Text("Mojeek").tag(WebDiscoveryEngine.mojeek)
+                        Text("Indexed sites").tag(WebDiscoveryEngine.index)
                     }.frame(maxWidth: 220).accessibilityLabel("Search engine")
                     Picker("Page type", selection: $fileType) {
                         Text("All pages").tag(WebDiscoveryFileType.all)
@@ -316,7 +318,7 @@ struct DiscoveryView: View {
                         Text("Past week").tag(WebDiscoveryRecency.week)
                         Text("Past month").tag(WebDiscoveryRecency.month)
                         Text("Past year").tag(WebDiscoveryRecency.year)
-                    }.frame(maxWidth: 180).accessibilityLabel("Recent period")
+                    }.disabled(engine == .index).frame(maxWidth: 180).accessibilityLabel("Recent period")
                     Picker("Region", selection: $region) {
                         Text("US (English)").tag(WebDiscoveryRegion.usEN)
                         Text("Canada (English)").tag(WebDiscoveryRegion.caEN)
@@ -421,7 +423,7 @@ struct DiscoveryView: View {
             domain: site.isEmpty ? nil : site,
             fileType: fileType,
             academic: academic,
-            recency: recency,
+            recency: engine == .index ? .any : recency,
             region: region
         )
         searchVersion += 1

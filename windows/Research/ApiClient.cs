@@ -869,6 +869,51 @@ public sealed class NotaeoApi
         return Decode<WebDiscoveryPage>(body);
     }
 
+    // ---------- selected educational-site index (GET/POST /api/web/index/sites) ----------
+
+    public async Task<List<SiteIndexSite>> ListIndexSitesAsync(CancellationToken ct = default)
+    {
+        var (body, _, _) = await SendRawAsync(
+            "api/web/index/sites", HttpMethod.Get, ct: ct).ConfigureAwait(false);
+        return Decode<List<SiteIndexSite>>(body);
+    }
+
+    public async Task<SiteIndexSite> AddIndexSiteAsync(string url, CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(url))
+        {
+            throw new ArgumentException("Site URL must not be empty.", nameof(url));
+        }
+
+        var (body, _, _) = await SendRawAsync(
+            "api/web/index/sites", HttpMethod.Post,
+            content: JsonBody(new { url }), ct: ct).ConfigureAwait(false);
+        return Decode<SiteIndexSite>(body);
+    }
+
+    public async Task<SiteIndexSite> RefreshIndexSiteAsync(string id, CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(id))
+        {
+            throw new ArgumentException("Indexed site id must not be empty.", nameof(id));
+        }
+
+        var (body, _, _) = await SendRawAsync(
+            $"api/web/index/sites/{id}/refresh", HttpMethod.Post, ct: ct).ConfigureAwait(false);
+        return Decode<SiteIndexSite>(body);
+    }
+
+    public async Task DeleteIndexSiteAsync(string id, CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(id))
+        {
+            throw new ArgumentException("Indexed site id must not be empty.", nameof(id));
+        }
+
+        await SendRawAsync(
+            $"api/web/index/sites/{id}", HttpMethod.Delete, ct: ct).ConfigureAwait(false);
+    }
+
     public async Task<MindMapNode> GetMindMapAsync(string notebookId, CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(notebookId))

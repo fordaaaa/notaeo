@@ -336,6 +336,28 @@ final class NotaeoAPI: NotebookSearching {
         try await addURLSource(notebookId: notebookId, url: url, force: false)
     }
 
+    // MARK: - Educational site index (GET/POST /api/web/index/sites, auth)
+
+    func listIndexSites() async throws -> [SiteIndexSite] {
+        let res = try await send(path: "api/web/index/sites", method: "GET")
+        return try decode([SiteIndexSite].self, from: res.data)
+    }
+
+    func addIndexSite(url: String) async throws -> SiteIndexSite {
+        struct Body: Encodable { var url: String }
+        let res = try await send(path: "api/web/index/sites", method: "POST", json: Body(url: url))
+        return try decode(SiteIndexSite.self, from: res.data)
+    }
+
+    func refreshIndexSite(id: String) async throws -> SiteIndexSite {
+        let res = try await send(path: "api/web/index/sites/\(id)/refresh", method: "POST")
+        return try decode(SiteIndexSite.self, from: res.data)
+    }
+
+    func deleteIndexSite(id: String) async throws {
+        _ = try await send(path: "api/web/index/sites/\(id)", method: "DELETE")
+    }
+
     // MARK: - Coach
 
     func getCoachState(notebookId: String) async throws -> CoachState {
