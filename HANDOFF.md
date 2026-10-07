@@ -22,6 +22,23 @@ Live state of the project. **Read this first** before doing anything.
 > same guarantees). Both carry frontend tests (`api.export.test.ts`,
 > `api.study-export.test.ts`); 401s clear the token and signal login.
 
+## Shared AI API entry point (2026-10-07)
+
+- Backend features now import `core.api` for optional AI generation. It exports
+  `generate`, `AIError`, `DEFAULT_MODELS` and `FALLBACK_MODELS`; the existing
+  provider dispatcher and Gemini/OpenRouter/Groq adapters remain underneath.
+  Dynamic forwarding preserves old imports, monkeypatches, retry behavior,
+  fallback models and error identity. No endpoints, saved keys, provider IDs,
+  dependencies or account boundaries changed.
+- OpenCode independently approved the spec, implemented the facade/imports,
+  and reviewed the final patch. Tests first: 9 failed due to missing facade;
+  targeted 106 passed; full backend 466 passed. The signed arm64 macOS package
+  was rebuilt with the shared entry point. No live AI request was required.
+- New AI callers should import `from core import api as ai_api`; HTTP routes
+  continue to live in the separate `backend/api/` package. `core/openrouter.py`
+  is still the provider-specific transport, while `core/api.py` is the common
+  entry point for all three supported providers.
+
 ## Native discovery and educational-site index (2026-10-07)
 
 - macOS and Windows now have native Discover: submitted query, engine choice,
@@ -543,7 +560,8 @@ FastAPI + pydantic v2 (backend, `uv.lock` pinned) · React 19 + Vite 8.2.2 + Tai
 - `core/study.py` — term-frequency key terms, markdown study-guide builder, mind-map tree + markdown serializers (all keyless).
 - `core/websearch.py` — keyless DDGS public-web discovery.
 - `core/gemini.py` / `core/openrouter.py` — provider REST clients; errors carry `status` + `retry_after`.
-- `core/providers.py` — dispatch `generate(provider, key, model, prompt) -> (answer, model)`; retry on 429/5xx, skip to backup models on 404/400, abort on 401/403; `FALLBACK_MODELS`/`DEFAULT_MODELS` constants live here.
+- `core/api.py` — common optional AI entry point for all supported providers; new callers use this facade.
+- `core/providers.py` — internal dispatch `generate(provider, key, model, prompt) -> (answer, model)`; retry on 429/5xx, skip to backup models on 404/400, abort on 401/403; `FALLBACK_MODELS`/`DEFAULT_MODELS` constants live here.
 - `core/store.py` — SQLite store (`app.db`, WAL): users (pbkdf2), sessions (hashed tokens, 30d, `purge_expired_sessions()`), per-user notebooks/sources/outlines/cards/notes/skills/memory/chat sessions/AI settings/`user_progress` (`mark_progress`/`get_progress`); `RESEARCH_DATA_DIR` override; `search()` (keyword AND, phrase, filters).
 - `core/ingest.py` — `ingest_bytes` (files), `ingest_text` (paste), `ingest_url` (calls `fetcher`).
 - `core/fetcher.py` — httpx GET + trafilatura article extraction; `FetchError` → mapped to HTTP status.

@@ -6,7 +6,7 @@ from fastapi import Depends, FastAPI, HTTPException
 from pydantic import BaseModel, Field, field_validator
 
 from api.deps import get_current_user, get_store
-from core import humanize, providers
+from core import api as providers, humanize
 from core.models import (
     HumanizeAnalyzeRequest,
     HumanizeAnalyzeResponse,

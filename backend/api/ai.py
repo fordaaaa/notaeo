@@ -4,7 +4,7 @@ from __future__ import annotations
 from fastapi import Depends, FastAPI, HTTPException, Query
 
 from api.deps import get_current_user, get_store, notebook_or_404, safe_id
-from core import providers, skills
+from core import api as providers, skills
 from core.context import build_context, build_note_excerpts
 from core.models import AISettingsUpdate, ChatMessage, ChatRequest, ChatResponse, ChatSession, ChatSessionCreate, User, utcnow
 from core.store import new_id

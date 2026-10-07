@@ -8,7 +8,7 @@ from collections import defaultdict
 from difflib import SequenceMatcher
 from typing import Any
 
-from core import providers, study
+from core import api as providers, study
 from core.models import Citation, CoachExplanation, CoachSession, CoachTask, ExamGoal, Source, utcnow
 from core.search import STOPWORDS, stemmed_words
 from core.store import Store, new_id

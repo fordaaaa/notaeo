@@ -9,7 +9,7 @@ from fastapi import Depends, FastAPI, HTTPException
 
 from api.deps import get_current_user, get_store, notebook_or_404, safe_id
 from api.sources import _summary
-from core import deepresearch, ingest, providers, research, skills
+from core import api as providers, deepresearch, ingest, research, skills
 from core.context import build_context
 from core.models import (
     OutlineCreate,
