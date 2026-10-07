@@ -1,6 +1,6 @@
 // Native JSON API client for the Notaeo sidecar. Portable (no WinForms refs).
 //
-// Contract (matches backend/api/* + frontend/src/api/*):
+// Contract (matches backend/api/*):
 // - JSON uses snake_case on the wire.
 // - Account auth is `Authorization: Bearer <token>`.
 // - Desktop loopback guard is `X-Notaeo-Desktop-Token: <per-launch token>`.

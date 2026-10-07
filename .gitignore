@@ -40,9 +40,6 @@ data/
 .codex/
 
 # playwright e2e artifacts
-/frontend/test-results/
-/frontend/playwright-report/
-/frontend/playwright/.cache/
 
 # local Brig code indexes
 /index/

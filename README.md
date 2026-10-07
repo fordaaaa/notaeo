@@ -17,12 +17,12 @@ and revisit topics you marked missed. Create a notebook, import your material,
 then open **Exam coach**. AI practice and explanations are optional; see the
 [exam-coach guide](docs/EXAM_COACH.md) and [product direction](docs/PRODUCT.md).
 
-**Current focus: installed macOS and Windows apps.** The standalone browser
-product is paused. Desktop interfaces are being rebuilt with SwiftUI on macOS
-and WinForms on Windows. `frontend/` remains legacy source and is excluded from
-desktop packages; mobile development in `research-mobile` is paused.
-Flashcard management, notes, general chat, mind maps and public-web discovery
-still need native screens; their existing backend APIs remain available.
+**Current focus: installed macOS and Windows apps.** The website and browser
+app were removed on 2026-10-07. Desktop interfaces use
+SwiftUI on macOS and WinForms on Windows. Search, sorting, thinking orbs, mind
+maps and public-web discovery have native screens. Mobile lives in the separate
+`research-mobile` repo; desktop remains the priority. The backend serves APIs
+only, with no website, browser login page or download landing page.
 
 ## Keyless promise and accounts
 
@@ -51,7 +51,7 @@ search remains the default. [Search and practice details](docs/EXAM_COACH.md).
 - **Backend** — Python 3.12, FastAPI, SQLite (`app.db`, WAL) with per-user
   rows everywhere, managed with [uv](https://docs.astral.sh/uv/)
 - **Desktop interface** — SwiftUI on macOS, WinForms on Windows, native controls
-  calling the local API; legacy React code remains in `frontend/`
+  calling the local API
 - **Keyless discovery** — public-web search through DDGS; needs no provider
   key, and results become local sources after ingest
 - **License** — MIT
@@ -67,7 +67,7 @@ and are never required here. Details: [`docs/PRODUCT.md`](docs/PRODUCT.md).
 
 ## Development
 
-Backend (terminal 1):
+Backend:
 
 ```sh
 cd backend
@@ -75,27 +75,9 @@ uv sync
 uv run uvicorn api.main:app --reload --no-proxy-headers
 ```
 
-Legacy browser interface (optional, for maintaining existing code only):
-
-```sh
-cd frontend
-npm install
-npm run dev
-```
-
-The developer preview at http://localhost:5173 proxies `/api/*` to the backend
-on port 8000. It is an internal engineering tool. Use the installed app for
-the desktop experience.
-
-Renderer browser checks run against isolated local servers by default:
-
-```sh
-cd frontend
-npm run e2e
-```
-
-See [`frontend/e2e/README.md`](frontend/e2e/README.md) for iPhone/WebKit,
-Pixel/Chromium, and opt-in deployed-backend testing.
+The service exposes `/api/*` for the installed apps. `/`, `/index.html`,
+`/docs` and `/redoc` return 404; server-mode `/openapi.json` remains available
+for API tooling. Browser CORS access is disabled by default.
 
 ## Desktop and mobile
 

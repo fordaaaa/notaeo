@@ -1,6 +1,6 @@
 """Local-runtime/privacy boundary: loopback, per-launch session, explicit egress.
 
-Failing-first tests for the desktop slice. The packaged macOS shell serves a
+API-only server: no website is served. The packaged native shell talks to a
 loopback FastAPI sidecar; an account (Bearer) is still mandatory and network
 egress must stay explicit (web search / URL ingest / BYOK AI / Google OAuth).
 """
@@ -9,36 +9,31 @@ from __future__ import annotations
 import inspect
 
 
-def _web_dir(tmp_path, monkeypatch, data_dir_name="data"):
-    web = tmp_path / "web"
-    web.mkdir(exist_ok=True)
-    (web / "index.html").write_text("desktop")
+def _data_dir(tmp_path, monkeypatch, data_dir_name="data"):
     monkeypatch.setenv("RESEARCH_DATA_DIR", str(tmp_path / data_dir_name))
-    return web
 
 
-def test_desktop_exchange_accepts_index_html_and_hardens_cookie(tmp_path, monkeypatch):
-    web = _web_dir(tmp_path, monkeypatch, "data-exchange")
+def test_desktop_query_and_cookie_exchange_removed(tmp_path, monkeypatch):
+    _data_dir(tmp_path, monkeypatch, "data-exchange")
     monkeypatch.setenv("RESEARCH_DESKTOP_TOKEN", "launch-token-123")
+    monkeypatch.delenv("RESEARCH_NATIVE_DESKTOP", raising=False)
     from fastapi.testclient import TestClient
 
     from api.main import create_app
 
-    with TestClient(create_app(web), follow_redirects=False) as client:
-        response = client.get("/index.html?desktop_token=launch-token-123")
-        assert response.status_code == 303
-        assert response.headers.get("location") == "/"
-        cookie = response.headers.get("set-cookie", "")
-        assert "research_session=" in cookie
-        assert "HttpOnly" in cookie
-        assert "SameSite=Strict" in cookie or "SameSite=strict" in cookie
-        assert "Path=/" in cookie
-        # token must not linger in the redirect target
-        assert "desktop_token" not in response.headers.get("location", "")
+    with TestClient(create_app(), follow_redirects=False) as client:
+        for path in ("/?desktop_token=launch-token-123", "/index.html?desktop_token=launch-token-123"):
+            response = client.get(path)
+            assert response.status_code == 404
+            assert "set-cookie" not in response.headers
+            assert "research_session" not in response.headers.get("set-cookie", "")
+        client.cookies.set("research_session", "launch-token-123")
+        assert client.get("/api/notebooks").status_code == 403
+        assert client.get("/api/notebooks", headers={"X-Notaeo-Desktop-Token": "launch-token-123"}).status_code == 401
 
 
 def test_desktop_cors_is_same_origin_only(tmp_path, monkeypatch):
-    _web_dir(tmp_path, monkeypatch, "data-cors")
+    _data_dir(tmp_path, monkeypatch, "data-cors")
     from fastapi.testclient import TestClient
 
     from api.main import create_app
@@ -55,21 +50,21 @@ def test_desktop_cors_is_same_origin_only(tmp_path, monkeypatch):
         allowed = dev_client.get(
             "/api/health", headers={"Origin": "http://localhost:5173"}
         ).headers.get("access-control-allow-origin")
-        assert allowed == "http://localhost:5173"
+        assert allowed is None
 
 
-def test_runtime_boundary_needs_desktop_cookie_but_no_login(tmp_path, monkeypatch):
-    web = _web_dir(tmp_path, monkeypatch, "data-runtime")
+def test_runtime_boundary_needs_launch_header_but_no_login(tmp_path, monkeypatch):
+    _data_dir(tmp_path, monkeypatch, "data-runtime")
     monkeypatch.setenv("RESEARCH_DESKTOP_TOKEN", "only-this-launch")
+    monkeypatch.delenv("RESEARCH_NATIVE_DESKTOP", raising=False)
     from fastapi.testclient import TestClient
 
     from api.main import create_app
 
-    with TestClient(create_app(web)) as client:
+    with TestClient(create_app()) as client:
         assert client.get("/api/health").status_code == 200
         assert client.get("/api/runtime").status_code == 403
-        client.get("/?desktop_token=only-this-launch")
-        body = client.get("/api/runtime").json()
+        body = client.get("/api/runtime", headers={"X-Notaeo-Desktop-Token": "only-this-launch"}).json()
         assert body["mode"] == "desktop"
         assert body["loopback_only"] is True
         assert body["desktop_session_required"] is True
@@ -88,7 +83,7 @@ def test_runtime_boundary_needs_desktop_cookie_but_no_login(tmp_path, monkeypatc
 
 
 def test_runtime_boundary_server_mode_without_desktop_token(tmp_path, monkeypatch):
-    _web_dir(tmp_path, monkeypatch, "data-runtime-server")
+    _data_dir(tmp_path, monkeypatch, "data-runtime-server")
     monkeypatch.delenv("RESEARCH_DESKTOP_TOKEN", raising=False)
     from fastapi.testclient import TestClient
 

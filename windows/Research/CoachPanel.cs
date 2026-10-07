@@ -1,6 +1,6 @@
 // Native exam coach: goal → build → select → start/resume → write →
 // reveal → self-rate → finish → history, plus basic/AI explanations.
-// Mirrors macos/CoachView.swift + frontend ExamCoachPanel contracts.
+// Mirrors macos/CoachView.swift and backend coach contracts.
 namespace Notaeo;
 
 internal sealed class CoachPanel : UserControl

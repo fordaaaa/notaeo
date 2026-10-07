@@ -34,11 +34,12 @@ discovery, and exports must work with zero AI and zero provider keys.
 No-AI mode is first-class; accounts are required (see non-negotiables).
 Keyless research is the main product goal.
 
-**Platform direction (owner update, 2026-10-05):** prioritize installed macOS
+**Platform direction (owner update, 2026-10-07):** prioritize installed macOS
 and Windows apps using native controls throughout (SwiftUI and WinForms).
-The standalone browser product is paused. `frontend/` is retained as legacy
-source and is excluded from native desktop packaging. Mobile lives in
-`research-mobile` and is paused while desktop work is the priority. See
+The website and standalone browser app are removed, including `frontend/`
+and static serving. Do not restore a web renderer or website build. Mobile
+lives in `research-mobile`; a bounded Settings/style pass has resumed while
+desktop remains the priority. See
 `docs/PRODUCT.md` for the current platform boundary.
 
 Non-negotiables:
@@ -85,15 +86,6 @@ macOS app (run from the repository root):
 sh scripts/build_macos_app.sh             # builds an arm64, ad-hoc-signed .app
 ```
 
-Frontend (run from `frontend/`):
-
-```sh
-npm install
-npm run dev                               # dev server on :5173, proxies /api → :8000
-npm run build                             # type-checks + production build (verify before commit)
-npm i <package>
-```
-
 **Never call system `python3`** — it is 3.14 and incompatible with some wheels. Always `uv run` (project pins 3.12 via `.python-version`).
 
 ## Architecture
@@ -123,8 +115,6 @@ backend/
 │   ├── fetcher.py      # http fetch + trafilatura article extraction (for url srcs)
 │   ├── export.py       # notebook → Obsidian-style markdown .zip
 └── data/               # ALL user data (gitignored)
-frontend/
-└── src/                # React 19 + TS + Tailwind 4 (api.ts is the only fetch layer)
 macos/
 ├── Research.xcodeproj  # native macOS app project
 └── Research/           # SwiftUI interface and API sidecar process manager
@@ -134,8 +124,9 @@ scripts/
 ```
 
 Native request flow: SwiftUI/WinForms → loopback API (`/api/*`) → `core/` → SQLite.
-Legacy preview flow: React → Vite proxy (`/api/*`) → the same FastAPI routes.
-**All API routes must live under `/api`** — the dev proxy depends on it.
+**All app resource routes must live under `/api`.** No browser frontend is
+served. Server-mode `/openapi.json` remains available for API tooling; browser
+docs UIs are disabled. Native desktop schemas remain private.
 
 Native clients call the loopback FastAPI API directly. Set
 `RESEARCH_NATIVE_DESKTOP=1` and send the per-launch `RESEARCH_DESKTOP_TOKEN`
@@ -172,9 +163,10 @@ access is 404. The old single-user JSON layout is gone — see
 - **Commits:** conventional prefixes (`feat:`, `fix:`, `chore:`, `docs:`), **single line, no body, no Co-Authored-By**. One logical change per commit.
 - **Coding-worker policy (locked):** write a meaningful failing test first, implement, run targeted tests, run the repo-required broader checks, report exact evidence — and commit only after reviewer approval. Docs-only changes still run `git diff --check` plus consistency greps, never the code test suite solely for prose.
 - Backend: type hints everywhere, pydantic models in `core/models.py`, docstrings only where non-obvious.
-- Frontend: TypeScript strict, function components, double quotes, Tailwind utility classes (no CSS files beyond `index.css`).
 - Tests live in `backend/tests/`; API tests use `fastapi.testclient` + temp data dir.
-- Verify before committing: `uv run pytest` (backend changes, MUST be green) and `npm run build` (frontend changes, MUST run clean).
+- Verify before committing: `uv run pytest` for backend changes (MUST be green).
+  There is no frontend build. Verify Windows native changes with portable tests
+  and a Release build; packaging the Windows Python sidecar requires Windows.
 - Verify native changes with `sh scripts/build_macos_app.sh`; it checks the
   arm64 sidecar and app signature. Use the Xcode path in that script instead of
   changing the machine-wide developer directory.

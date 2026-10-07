@@ -4,10 +4,10 @@ Live state of the project. **Read this first** before doing anything.
 
 > Status: branch `main`, hosted multi-user pivot landed (SQLite + email auth,
 > per-user data). Installed macOS and Windows apps are the current priority
-> (owner update 2026-10-05). The standalone browser product is paused; the
+> (owner update 2026-10-07). The website/browser app is removed; the
 > owner selected native controls throughout: SwiftUI and WinForms. A first
 > native exam-coach alpha is implemented; additional feature screens still need
-> porting. Legacy frontend assets are excluded from packaging.
+> porting. No frontend source or website assets are retained.
 > Mobile lives
 > in `research-mobile`; a bounded Settings/style pass was resumed on
 > 2026-10-07, while desktop remains the priority.
@@ -23,6 +23,35 @@ Live state of the project. **Read this first** before doing anything.
 > same guarantees). Both carry frontend tests (`api.export.test.ts`,
 > `api.study-export.test.ts`); 401s clear the token and signal login.
 
+## Website removal (2026-10-07)
+
+- Owner explicitly requested complete website removal, including the local
+  `research-server` checkout. Both React frontends and static-serving paths
+  are removed; server Docker, CI and snapshot sync become backend-only.
+- Installed apps keep accounts, sources, search, exports, study tools and
+  optional AI. Launch authentication uses the native request header only;
+  query-token/cookie exchange is removed. Browser docs UIs and development
+  CORS origins are removed. Server OpenAPI JSON remains available for tooling.
+- No live host has been redeployed and no data, keys or mobile development
+  harness has been removed. Older sections below record historical frontend
+  work; their browser file paths and build commands are no longer current.
+- OpenCode workers implemented each repo independently after meaningful red
+  tests: main removal 12 failed/4 passed; hosted removal 12 failed/1 passed.
+  Root also removed the hosted admin HTML/JS/CSS while preserving protected
+  statistics/user JSON APIs (4 failing regressions, then 9 admin tests passed).
+  Final hosted review found weaker sidecar startup checks; 8 new failing
+  regressions confirmed the gap before token/data-dir/bundle guards were fixed.
+- Final verification: main backend **484 passed**; hosted backend **356 passed**;
+  macOS XCTest **79 passed**; Windows portable suite **165 passed**; signed
+  arm64 macOS package and self-contained win-x64 cross-publish passed. Counts
+  for native suites exclude tests of removed, unused browser helpers.
+- Hosted Docker build passed. A disposable container proved website and
+  former admin assets return 404 while health, OpenAPI JSON, account login,
+  paste ingestion, search, export and protected admin JSON work; the image has
+  no frontend/web/.env. Its anonymous test volume and container were removed.
+  The shipping C# client also passed the packaged-sidecar search/ownership
+  probe. Both final patches received independent OpenCode APPROVE reviews.
+
 ## Mobile Settings quality pass (2026-10-07)
 
 - Owner requested updating `research-mobile` alongside macOS. That separate
@@ -34,9 +63,8 @@ Live state of the project. **Read this first** before doing anything.
   journeys and iOS/Android/web bundle export passed. Native device testing is
   still required; no public release, upload or private hosted backend changes.
   Details live in `research-mobile/docs/MOBILE_SETTINGS.md`.
-- The browser workspace stays paused. The owner's download-only question has
-  a recommendation for installed apps plus a small download/help website;
-  it does not authorize deleting the retained legacy source or publishing a site.
+- The subsequent owner request on 2026-10-07 explicitly removes the website
+  completely, superseding the earlier download/help-site recommendation.
 
 ## Shared AI API entry point (2026-10-07)
 
@@ -489,8 +517,8 @@ Live state of the project. **Read this first** before doing anything.
   required on every data route; AI keys stay optional and per-user. License is
   MIT (matches fordaaaa/panoply). Google OAuth implemented (client-ID config
   pending); Apple at App Store time.
-- Run it: `cd backend && uv run uvicorn api.main:app --reload --no-proxy-headers` + `cd frontend && npm run dev` → http://localhost:5173 (register a local account — free, instant)
-- Tests: `cd backend && uv run pytest` · Frontend check: `cd frontend && npm run build`
+- Run the development API: `cd backend && uv run uvicorn api.main:app --reload --no-proxy-headers`; use native apps for the interface.
+- Tests: `cd backend && uv run pytest`; native build checks are below.
 
 ## Native macOS alpha
 
@@ -498,7 +526,7 @@ Live state of the project. **Read this first** before doing anything.
   the child process and uses native SwiftUI controls. The Windows target uses
   WinForms. The native interface migration is in progress.
 - `backend/desktop.py` binds a random `127.0.0.1` port and announces readiness.
-  `RESEARCH_NATIVE_DESKTOP=1` starts an API-only sidecar without web assets.
+  The sidecar always starts API-only, with no static asset dependency.
 - `scripts/build_macos_app.sh` builds the PyInstaller `onedir` sidecar
   and the Xcode app, copies the sidecar into Resources, then
   ad-hoc signs and verifies the bundle. Run it from the repository root.
@@ -530,12 +558,12 @@ Live state of the project. **Read this first** before doing anything.
 1. **Accounts required, AI optional** — login (email + Google done, Apple at App Store time) gates every data route; AI keys stay optional and per-user. Self-hosting stays $0.
 2. **No local LLMs** (no Ollama) — optional remote AI is not a product dependency.
 3. **No-AI mode is first-class** — ingest/search/web discovery/reader/exports work with no provider configured.
-4. **Python backend (FastAPI + uv) + React frontend** — two languages accepted for best PDF/DOCX ecosystem.
+4. **Python backend (FastAPI + uv) + native clients** — SwiftUI on macOS and WinForms on Windows; website removed.
 5. **Commits: conventional prefixes, single line, no body, no Co-Authored-By.**
 6. **SQLite store** — multi-user data lives in `app.db` (WAL) under the data dir; per-user rows everywhere, cross-user access is 404. Swap inside `core/store.py` only. One-shot JSON import: `backend/scripts/migrate_json_to_sqlite.py`.
 7. **Public/private boundary (locked)** — this repo stays MIT and holds the complete useful keyless/no-AI local/self-hosted product (ingest, search, reader, study, exports, discovery, shared UI, local service, BYOK adapters). Private `fordaaaa/research-server` owns hosted operations only: cloud accounts, managed storage/sync, subscriptions/entitlements, hosted AI credits/routing, rate limits/abuse controls, admin/ops, production secrets/infra. Never imply access to private code or gate local flows on it.
 8. **Three AI modes (locked)** — no-AI first-class, BYOK (per-user Gemini/OpenRouter key), hosted credits later (limited free allowance + paid tiers, routed/entitled by the private server).
-9. **Platforms (owner update 2026-10-05)** — native SwiftUI macOS and WinForms Windows apps first; standalone browser product paused. Legacy React source is retained but excluded from desktop packages. iOS and Android live in `research-mobile`; mobile work is paused while desktop is the priority.
+9. **Platforms (owner update 2026-10-07)** — native SwiftUI macOS and WinForms Windows apps first; website and browser source removed from both repos. iOS and Android live in `research-mobile`; bounded Settings/style work resumed while desktop remains the priority.
 10. **Hosted-launch legal (locked, owner + lawyer required)** — launch needs Terms of Service, Privacy Policy, Acceptable Use/AI terms, subscription/cancellation language, retention/export/deletion commitments, copyright/takedown handling, and student/minor-data treatment. Legal review is required; docs must not draft definitive legal claims.
 11. **Coding-worker policy (locked)** — every future coding worker writes a meaningful failing test first, implements, runs targeted tests, runs the repo-required broader checks, reports exact evidence, and commits only after reviewer approval.
 
@@ -548,11 +576,11 @@ Live state of the project. **Read this first** before doing anything.
 
 ## Stack versions
 
-FastAPI + pydantic v2 (backend, `uv.lock` pinned) · React 19 + Vite 8.2.2 + Tailwind 4.3.3 + TypeScript (frontend) · storage: SQLite `app.db` under the data dir (gitignored). Note newer fix commits: streamed uploads (50 MB cap mid-stream), path-id validation via `api/deps.safe_id`, generic 500 handler, capped query/paste lengths.
+FastAPI + pydantic v2 (backend, `uv.lock` pinned) · SwiftUI (macOS) · WinForms/.NET 10 (Windows) · storage: SQLite `app.db` under the data dir (gitignored). Note newer fix commits: streamed uploads (50 MB cap mid-stream), path-id validation via `api/deps.safe_id`, generic 500 handler, capped query/paste lengths.
 
 ## Backend map (current)
 
-- `api/main.py` — FastAPI factory; lifespan sets `app.state.store`; global exception handler returns generic 500 (no stack leak); can mount built web assets for the desktop sidecar.
+- `api/main.py` — FastAPI factory; lifespan sets `app.state.store`; global exception handler returns generic 500 (no stack leak); serves APIs only; no static assets or browser docs UIs.
 - `desktop.py` — ephemeral loopback Uvicorn entrypoint for the native app.
 - `api/deps.py` — `safe_id()` (regex `^[a-f0-9]{12}$`), `get_store(app)`, `notebook_or_404(store, user_id, ...)` (ownership-checked), `get_current_user()` (Bearer → 401).
 - `api/auth.py` — `POST /api/auth/register|login` (pbkdf2, 30-day sessions; register answers duplicates `200 {registered: false}` — anti-enumeration), `POST /api/auth/logout`, `GET /api/auth/me`, `POST /api/auth/google` + `GET /api/auth/google/status` (id_token verification via `core/google_auth.py`, 503 unconfigured), `GET /api/me/progress` (onboarding flags). Login is rate-limited in three layers (verify-first per-key 10/5min, per-IP 60/5min, per-email 50/5min) plus a 20/hour/IP register throttle; XFF is ignored unless `RESEARCH_TRUST_XFF=1`.
@@ -587,14 +615,17 @@ FastAPI + pydantic v2 (backend, `uv.lock` pinned) · React 19 + Vite 8.2.2 + Tai
 - `core/google_auth.py` — Google id_token verification for OAuth sign-in; 503 when unconfigured.
 - `core/export.py` — notebook → `index.md` + per-source `.md` with YAML frontmatter, zipped.
 
-## Frontend map (minimal, intentionally lagging)
+## Native client map
 
-`src/api.ts` is the compatibility barrel for domain modules in `src/api/`; `src/api/client.ts` owns token handling, shared response parsing, and downloads, with contracts grouped under `src/api/types/`. `src/components/` — AuthPanel (login/register gate), NotebookPicker (home dashboard + demo entry), UploadZone, SourceList (tap-to-read), ReaderModal (page navigation), SearchPanel, ResearchPanel (quick plan/gather), OutlinePanel (deep-research outlines), ChatPanel, StudyPanel (scheduled flashcards + grounded drafts + glossary + quiz + guide + mind map), HumanizerPanel, SkillsPanel, SettingsDialog, `ui.tsx` (Button/Card/Badge/Tabs/inputs) · `App.tsx` — sticky header, desktop tool rail/source panel, and responsive internal renderer. Appearance is local to the device: Paper (default), Ocean, Night, with readable Atkinson Hyperlegible Next or optional Maple Mono; both fonts are bundled offline. `src/index.css` maps existing `neutral-*` utilities to theme tokens (`neutral-950` page, `neutral-900` surface, `neutral-100` primary ink/button). Avoid raw `white`/`black` fills and per-component `dark:` variants. No router, no state library. Legacy interface only: native apps do not embed this renderer. Sound is one offline WebAudio module (`src/sound.ts`, default on, single `notaeo:sound` toggle in SettingsDialog): boot lift, success confirm, a quiet universal tap tick via one delegated listener (`armTapSounds()` in `main.tsx`), and a settings preview that bypasses the mute gate; `index.css` pairs it with universal `:active` press physics that collapse under `prefers-reduced-motion`. `FolioLoader.tsx` stages the boot animation; `Checklist.tsx` renders the 4-item onboarding list fed by `GET /api/me/progress` merged with sticky local flags.
+`macos/Research/` contains SwiftUI screens, the authenticated API client and
+loopback process manager. `windows/Research/` contains the corresponding
+WinForms screens and native process/API clients. Frontend source and browser
+build/test commands were removed on 2026-10-07.
 
 ## Testing
 
 - `backend/tests/` — feature folders keep API, auth, AI, core, ingest, search, study, export, and platform tests together. Root `conftest.py` sets `RESEARCH_DATA_DIR` to a temp dir per test and exposes an **authed** `client` fixture (registers one user, sends its bearer token). See `auth/test_auth.py` for register/login/logout/isolation coverage.
-- Build checks: `cd backend && uv run pytest`; `cd frontend && npm test && npm run build && npm run lint`; `cd frontend && npm run e2e` for isolated iPhone/WebKit + Pixel/Chromium journeys; then `sh scripts/build_macos_app.sh` for the arm64 app bundle and sidecar smoke test. Remote E2E setup is documented in `frontend/e2e/README.md`.
+- Build checks: `cd backend && uv run pytest`; `sh scripts/build_macos_app.sh` for the signed arm64 app and sidecar; macOS XCTest; Windows portable tests and Release cross-publish. Build the Windows Python sidecar on Windows. Mobile browser journeys belong to its separate Expo development harness.
 
 ## Next milestones
 

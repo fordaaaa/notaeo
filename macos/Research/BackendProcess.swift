@@ -8,7 +8,7 @@ import Foundation
 /// - Data lives in Application Support `research/data`; only this child
 ///   process is ever terminated (never unrelated processes).
 /// - Native mode sets `RESEARCH_NATIVE_DESKTOP=1` and never requires bundled
-///   renderer assets (`RESEARCH_WEB_DIR` unset). API-only over loopback.
+///   website assets. API-only over loopback.
 @MainActor
 final class BackendProcess: ObservableObject {
     enum State: Equatable {

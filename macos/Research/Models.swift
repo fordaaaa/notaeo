@@ -126,7 +126,7 @@ struct PasteResult: Sendable {
     var summary: SourceSummary?
 }
 
-// MARK: - Coach (mirrors backend/core/models.py + frontend api/types/coach.ts)
+// MARK: - Coach (mirrors backend/core/models.py)
 
 struct ExamGoal: Codable, Equatable, Sendable {
     var title: String

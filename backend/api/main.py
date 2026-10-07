@@ -10,13 +10,10 @@ import hmac
 import logging
 import os
 from contextlib import asynccontextmanager
-from pathlib import Path
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from fastapi.responses import RedirectResponse
-from fastapi.staticfiles import StaticFiles
 
 from api import (
     ai,
@@ -45,12 +42,7 @@ from core.store import Store
 logger = logging.getLogger("api")
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
 
-DESKTOP_COOKIE = "research_session"
-DESKTOP_TOKEN_PARAM = "desktop_token"
 DESKTOP_TOKEN_HEADER = "X-Notaeo-Desktop-Token"
-# The packaged shell loads the sidecar root ("/"); "/index.html" covers a
-# direct index request through StaticFiles with the same per-launch token.
-DESKTOP_EXCHANGE_PATHS = frozenset({"/", "/index.html"})
 SECURITY_HEADERS = {
     "X-Content-Type-Options": "nosniff",
     "X-Frame-Options": "DENY",
@@ -78,23 +70,21 @@ async def lifespan(app: FastAPI):
     yield
 
 
-def create_app(web_dir: Path | None = None) -> FastAPI:
-    """Create the API, optionally serving a built frontend at the site root."""
+def create_app() -> FastAPI:
+    """Create the API-only app. No website is served; unknown paths are 404."""
     desktop_token = os.environ.get("RESEARCH_DESKTOP_TOKEN") or None
-    native_desktop = os.environ.get("RESEARCH_NATIVE_DESKTOP") == "1"
-    if native_desktop and not desktop_token:
+    if os.environ.get("RESEARCH_NATIVE_DESKTOP") == "1" and not desktop_token:
         raise RuntimeError("native desktop requires RESEARCH_DESKTOP_TOKEN")
     app = FastAPI(
         title="Notaeo", version="0.1.0", lifespan=lifespan,
-        docs_url=None if desktop_token else "/docs",
-        redoc_url=None if desktop_token else "/redoc",
+        docs_url=None,
+        redoc_url=None,
         openapi_url=None if desktop_token else "/openapi.json",
     )
-    # Desktop sidecar is same-origin only (WKWebView on a loopback port);
-    # development keeps the Vite origin so `npm run dev` can call the API.
+    # Native clients need no browser cross-origin access.
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=[] if desktop_token else ["http://localhost:5173"],
+        allow_origins=[],
         allow_methods=["*"],
         allow_headers=["*"],
     )
@@ -102,23 +92,8 @@ def create_app(web_dir: Path | None = None) -> FastAPI:
     @app.middleware("http")
     async def desktop_session(request: Request, call_next):
         if desktop_token:
-            supplied = request.query_params.get(DESKTOP_TOKEN_PARAM)
-            if not native_desktop and request.url.path in DESKTOP_EXCHANGE_PATHS and _token_matches(supplied, desktop_token):
-                response = RedirectResponse(url="/", status_code=303)
-                response.set_cookie(
-                    DESKTOP_COOKIE,
-                    desktop_token,
-                    path="/",
-                    httponly=True,
-                    samesite="strict",
-                )
-                response.headers.update(SECURITY_HEADERS)
-                return response
             if request.url.path.startswith("/api/") and request.url.path != "/api/health":
-                credential = (
-                    request.headers.get(DESKTOP_TOKEN_HEADER)
-                    if native_desktop else request.cookies.get(DESKTOP_COOKIE)
-                )
+                credential = request.headers.get(DESKTOP_TOKEN_HEADER)
                 if not _token_matches(credential, desktop_token):
                     return JSONResponse(status_code=403, content={"detail": "desktop session required"}, headers=SECURITY_HEADERS)
 
@@ -140,7 +115,7 @@ def create_app(web_dir: Path | None = None) -> FastAPI:
         """Local-runtime privacy boundary facts; no user data, no paths."""
         return describe_runtime(bool(desktop_token))
 
-    # Mount route modules before the frontend so /api always wins over assets.
+    # API-only: route modules define every path; unknown paths are 404.
     notebooks.register(app)
     notes.register(app)
     auth.register(app)
@@ -160,8 +135,6 @@ def create_app(web_dir: Path | None = None) -> FastAPI:
     classes.register(app)
     review.register(app)
     classroom.register(app)
-    if web_dir is not None:
-        app.mount("/", StaticFiles(directory=web_dir, html=True), name="web")
     return app
 
 

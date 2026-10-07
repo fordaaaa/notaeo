@@ -73,8 +73,8 @@ provider billing or private research-server code is part of this work.
 
 - **This repo (`research`, public, MIT)** holds the complete useful
   keyless/no-AI local/self-hosted product: ingestion, search, reader, study
-  tools, exports, keyless public-web discovery, the shared responsive
-  frontend/client behavior, the local service, and BYOK provider adapters.
+  tools, exports, keyless public-web discovery, native desktop clients,
+  the local service, and BYOK provider adapters.
 - **Private `fordaaaa/research-server`** is a separate repository and owns hosted operations only: cloud
   accounts infrastructure, managed cloud storage/sync,
   subscriptions/entitlements, hosted AI credits/routing, rate limits and
@@ -109,21 +109,23 @@ provider billing or private research-server code is part of this work.
    SwiftUI and WinForms interfaces with visible Settings and platform shortcuts,
    managed backend startup, and native file dialogs. This supersedes the
    previous macOS/web focus and Windows deferral.
-2. **The standalone browser app is out of product scope for now.** The existing
-   React code in `frontend/` is retained as legacy source, excluded from desktop
-   packages. The owner explicitly selected native controls throughout.
-   Development previews and browser tests only maintain the legacy code.
+2. **The website and browser app are removed** — owner update, 2026-10-07.
+   `frontend/`, static asset serving, browser login/marketing pages, browser
+   docs UIs and frontend build/sync jobs are removed from `research` and the
+   locally inspected `research-server` checkout. The backend remains API-only
+   for installed clients. No download/help website is retained. Applying these
+   changes to a remote deployment is a separate operation.
 3. **iOS and Android live in the separate `research-mobile` repository.**
-   Changes to this repo's React frontend do not automatically reach that app.
+   Its Expo development/browser test harness is separate from the removed website.
    Desktop remains the priority. Owner update, 2026-10-07: a bounded mobile
    Settings, motion and styling pass is resumed in `research-mobile`; broader
    mobile feature parity remains future work.
 - **Local-runtime boundary (desktop):** the sidecar binds `127.0.0.1` only
   on an ephemeral port; the shell passes a per-launch `RESEARCH_DESKTOP_TOKEN`
-  sent as `X-Notaeo-Desktop-Token` in API-only native mode (constant-time
+  sent as `X-Notaeo-Desktop-Token` whenever a launch token is configured (constant-time
   comparison, no browser exchange). This launch token alone grants no data —
   every data route still requires the account Bearer token. Desktop builds
-  are same-origin only (no Vite CORS origin). `GET /api/runtime` states this
+  have no browser CORS origins. `GET /api/runtime` states this
   boundary with no user data. Network egress stays explicit-only: web
   search, educational-index refresh, URL ingest, BYOK AI, and Google OAuth run solely on direct user
   action over HTTPS — no implicit sync, telemetry, proxy, or evasion.

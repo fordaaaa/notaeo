@@ -53,15 +53,20 @@ def test_native_token_preserves_account_ownership_and_has_no_browser_exchange(na
     assert "set-cookie" not in root.headers
 
 
-def test_native_sidecar_starts_without_frontend_assets(tmp_path, monkeypatch):
+def test_native_sidecar_ignores_frontend_assets(tmp_path, monkeypatch):
+    web = tmp_path / "web"
+    web.mkdir()
+    (web / "index.html").write_text("legacy website")
     monkeypatch.setenv("RESEARCH_NATIVE_DESKTOP", "1")
     monkeypatch.setenv("RESEARCH_DESKTOP_TOKEN", "native-launch-secret")
-    monkeypatch.setenv("RESEARCH_WEB_DIR", str(tmp_path / "missing-web"))
+    monkeypatch.setenv("RESEARCH_WEB_DIR", str(web))
     monkeypatch.setenv("RESEARCH_DATA_DIR", str(tmp_path / "data"))
+    assert not hasattr(desktop, "web_root")
     with TestClient(desktop.create_desktop_app()) as client:
         assert client.get("/api/health").status_code == 200
         assert client.get("/").status_code == 404
         assert client.get("/index.html").status_code == 404
+        assert client.get("/assets/app.js").status_code == 404
 
 
 def test_native_mode_refuses_missing_launch_token(monkeypatch):
@@ -71,10 +76,17 @@ def test_native_mode_refuses_missing_launch_token(monkeypatch):
         create_app()
 
 
-def test_packaged_native_mode_requires_external_data_directory(monkeypatch, tmp_path):
-    monkeypatch.setenv("RESEARCH_NATIVE_DESKTOP", "1")
+@pytest.mark.parametrize("native", ["absent", "0", "1"])
+def test_packaged_native_mode_requires_external_data_directory(monkeypatch, tmp_path, native):
+    if native == "absent":
+        monkeypatch.delenv("RESEARCH_NATIVE_DESKTOP", raising=False)
+    else:
+        monkeypatch.setenv("RESEARCH_NATIVE_DESKTOP", native)
     monkeypatch.setenv("RESEARCH_DESKTOP_TOKEN", "launch")
     monkeypatch.delenv("RESEARCH_DATA_DIR", raising=False)
+    with pytest.raises(RuntimeError, match="RESEARCH_DATA_DIR"):
+        desktop.create_desktop_app()
+    monkeypatch.setenv("RESEARCH_DATA_DIR", "relative/data")
     with pytest.raises(RuntimeError, match="RESEARCH_DATA_DIR"):
         desktop.create_desktop_app()
     bundle = tmp_path / "Notaeo.app"

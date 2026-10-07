@@ -1,22 +1,22 @@
 # Native desktop migration
 
 Owner choice, 2026-10-05: rebuild with native controls throughout. macOS uses
-SwiftUI; Windows uses WinForms. The standalone browser product and mobile
-development are paused. Legacy React source is retained for reference and
-existing uncommitted work, but desktop packages contain no web assets.
+SwiftUI; Windows uses WinForms. Owner update, 2026-10-07: the website and
+browser app are removed completely. Desktop packages contain no web assets.
+Mobile Settings/style work lives separately in `research-mobile`.
 
-The first native workflow is account login, notebooks, source import/reading,
+The first migration delivered account login, notebooks, source import/reading,
 exam goals, selected revision sessions, written answers, self-ratings, saved
 history, and optional AI explanations. Settings belong to the platform app,
-including account and provider configuration. Additional legacy features
-(separate flashcard management, general chat, notes, mind maps and public-web
-discovery) need native interface work; their backend endpoints remain available.
+including account and provider configuration. Later native slices added study
+workspace tools, mind maps and public-web discovery; see HANDOFF.md for current
+feature and verification status.
 
 macOS also has native notebook search with source-type filters, optional
 related-term matching, result counts, pagination and cited-page opening in
 the source reader. Search results stay available when reading a source and
 returning to Search; changing notebooks clears the search state. Cmd+F opens
-and focuses Search. Windows search controls still need porting.
+and focuses Search. Windows now has its own native search controls.
 
 `GET /api/notebooks/{id}/search/page` returns a typed page containing `hits`,
 `query`, `total`, `limit`, `offset`, `has_more`, `took_ms` and `related`. It
@@ -25,10 +25,10 @@ The legacy `/search` endpoint retains its list response and timing/total
 headers. Neither endpoint requires AI configuration.
 
 Both clients own a bundled Python API process, bound to `127.0.0.1` on an
-ephemeral port. `RESEARCH_NATIVE_DESKTOP=1` starts the sidecar without a
-frontend directory. `X-Notaeo-Desktop-Token` carries the random launch token;
+ephemeral port. The sidecar always serves APIs only.
+`X-Notaeo-Desktop-Token` carries the random launch token;
 account Bearer authentication remains mandatory on data routes. Browser
-cookie exchange is disabled in native mode. User data stays outside the app:
+cookie and query-token exchange are removed. User data stays outside the app:
 Application Support on macOS, AppData on Windows, under `research/data`.
 
 Build macOS with `sh scripts/build_macos_app.sh`. It packages the Python

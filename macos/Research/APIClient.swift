@@ -32,7 +32,7 @@ enum APIError: LocalizedError, Equatable, Sendable {
 
 /// Native JSON API client for the Notaeo sidecar.
 ///
-/// Contract (matches frontend/src/api/*):
+/// Contract (matches backend/api/*):
 /// - JSON uses snake_case on the wire; Swift uses camelCase.
 /// - Account auth is `Authorization: Bearer <token>`.
 /// - Desktop loopback guard is `X-Notaeo-Desktop-Token: <per-launch token>`.

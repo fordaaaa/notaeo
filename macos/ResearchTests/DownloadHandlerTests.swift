@@ -1,7 +1,7 @@
 import XCTest
 @testable import Notaeo
 
-/// Safe filenames and navigation policy for native downloads.
+/// Safe filenames for native downloads.
 final class DownloadHandlerTests: XCTestCase {
     // MARK: - Safe filenames
 
@@ -72,23 +72,4 @@ final class DownloadHandlerTests: XCTestCase {
         XCTAssertTrue(clean.hasSuffix(".md"))
     }
 
-    // MARK: - Auth URL behavior (must be preserved)
-
-    func testLoopbackURLsStayInApp() {
-        XCTAssertFalse(DownloadHandler.shouldOpenExternally(url: URL(string: "http://127.0.0.1:8000/?desktop_token=abc")!))
-        XCTAssertFalse(DownloadHandler.shouldOpenExternally(url: URL(string: "http://127.0.0.1:1234/api/notebooks/abc/export")!))
-        XCTAssertTrue(DownloadHandler.shouldAllowNavigation(url: URL(string: "http://127.0.0.1:8000/?desktop_token=abc")!))
-    }
-
-    func testExternalHttpOpensInBrowser() {
-        XCTAssertTrue(DownloadHandler.shouldOpenExternally(url: URL(string: "https://example.com/article")!))
-        XCTAssertTrue(DownloadHandler.shouldOpenExternally(url: URL(string: "http://example.com/article")!))
-        XCTAssertFalse(DownloadHandler.shouldAllowNavigation(url: URL(string: "https://example.com/article")!))
-    }
-
-    func testBlobAndDataURLsNeverOpenExternally() {
-        XCTAssertFalse(DownloadHandler.shouldOpenExternally(url: URL(string: "blob:https://example.com/uuid")!))
-        XCTAssertFalse(DownloadHandler.shouldOpenExternally(url: URL(string: "data:text/plain,hello")!))
-        XCTAssertFalse(DownloadHandler.shouldAllowNavigation(url: URL(string: "blob:https://example.com/uuid")!))
-    }
 }

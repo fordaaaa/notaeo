@@ -83,8 +83,8 @@ require authentication:
 | POST `/sessions/{id}/tasks/{task_id}/explain` | `use_ai` | Answer, source citations, generation mode, fallback notice |
 
 Ratings are `got_it` or `revise`. Invalid state transitions return 409;
-invalid selection or missing material returns 400. The frontend uses the
-shared authenticated API layer and cancels/discards stale notebook requests.
+invalid selection or missing material returns 400. Native clients use their
+authenticated API layers and cancel/discard stale notebook requests.
 Source candidates are scanned in pages with a bounded retained pool. Explicit
 focus topics precede frequency-ranked glossary terms so a brief passage in
 a long lecture can still become the first practice question.

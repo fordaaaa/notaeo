@@ -1,6 +1,11 @@
-# Folio loading + staged sound (offline-first)
+# Historical folio loading + staged sound specification
 
-Status: staged. Web boot + reader opening use the folio loop in this repo;
+This document records the previous browser implementation. The website and
+its assets were removed on 2026-10-07; browser paths and WebView proposals
+below are historical, not current implementation instructions. Current native
+motion lives in SwiftUI/WinForms, and mobile motion in `research-mobile`.
+
+Historical status: staged. Web boot + reader opening use the folio loop in this repo;
 macOS `StartupView` mirrors the motif natively; mobile + Windows reuse the
 same offline assets. Thinking orbs stay the AI-only indicator.
 

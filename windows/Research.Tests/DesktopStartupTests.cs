@@ -48,15 +48,6 @@ public sealed class DesktopStartupTests
     }
 
     [Fact]
-    public void BuildLaunchUrlAttachesEscapedToken()
-    {
-        var ready = new Uri("http://127.0.0.1:53211");
-        var url = DesktopStartup.BuildLaunchUrl(ready, "a b&c");
-        Assert.Contains("desktop_token=a%20b%26c", url);
-        Assert.StartsWith("http://127.0.0.1:53211/", url);
-    }
-
-    [Fact]
     public void LaunchTokensAreUnpredictable()
     {
         var first = DesktopStartup.CreateLaunchToken();

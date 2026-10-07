@@ -1,6 +1,6 @@
 import Foundation
 
-/// Safe native export filenames and retained legacy navigation helpers.
+/// Safe native export filenames.
 enum DownloadHandler {
     static let maxFilenameLength = 255
 
@@ -15,35 +15,7 @@ enum DownloadHandler {
         return cleaned
     }
 
-    /// True only for remote http(s) URLs, which the shell opens in the
-    /// default browser. Loopback, blob:, data:, file:, and about: URLs
-    /// must never open externally (blob:/data: are bridged, loopback stays
-    /// in-app to preserve the `desktop_token` -> cookie auth flow).
-    static func shouldOpenExternally(url: URL) -> Bool {
-        guard let scheme = url.scheme?.lowercased(), scheme == "http" || scheme == "https" else {
-            return false
-        }
-        guard let host = url.host?.lowercased() else { return false }
-        return !isLoopbackHost(host)
-    }
-
-    /// True only for loopback http(s) navigations (the bundled sidecar).
-    /// Preserves auth behavior: any path/query on 127.0.0.1 (including
-    /// `?desktop_token=...`) stays in-app; everything else is cancelled here
-    /// and handled via the browser handoff or the download bridge.
-    static func shouldAllowNavigation(url: URL) -> Bool {
-        guard let scheme = url.scheme?.lowercased(), scheme == "http" || scheme == "https" else {
-            return false
-        }
-        guard let host = url.host?.lowercased(), isLoopbackHost(host) else { return false }
-        return true
-    }
-
     // MARK: - Private
-
-    private static func isLoopbackHost(_ host: String) -> Bool {
-        host == "127.0.0.1" || host == "localhost" || host == "::1" || host == "[::1]"
-    }
 
     private static func sanitizeComponent(_ name: String?) -> String? {
         guard var value = name?.trimmingCharacters(in: .whitespacesAndNewlines), !value.isEmpty else {

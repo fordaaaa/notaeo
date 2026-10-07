@@ -1,4 +1,4 @@
-// Pure RESEARCH_READY parsing + launch-URL building. No WinForms refs
+// Pure RESEARCH_READY parsing and launch-token generation. No WinForms refs
 // so the portable net10 test project can run anywhere.
 // Reuses backend/desktop.py: the sidecar prints "RESEARCH_READY http://127.0.0.1:<port>"
 // from an ephemeral loopback bind; this unit validates that announcement as
@@ -91,25 +91,6 @@ internal static class DesktopStartup
         }
 
         return false;
-    }
-
-    // Attach the per-launch token only after the READY URL validated as
-    // loopback http. Callers must pass an already-validated ready URL.
-    // Native API clients send the token as X-Notaeo-Desktop-Token; this helper
-    // remains for the legacy query-token exchange path and for tests.
-    internal static string BuildLaunchUrl(Uri ready, string token)
-    {
-        ArgumentNullException.ThrowIfNull(ready);
-        if (string.IsNullOrEmpty(token))
-        {
-            throw new ArgumentException("Desktop token must not be empty.", nameof(token));
-        }
-
-        var builder = new UriBuilder(ready)
-        {
-            Query = $"desktop_token={Uri.EscapeDataString(token)}",
-        };
-        return builder.Uri.AbsoluteUri;
     }
 
     internal static string GetOrigin(Uri url)
