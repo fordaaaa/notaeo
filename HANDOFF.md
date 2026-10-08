@@ -23,6 +23,28 @@ Live state of the project. **Read this first** before doing anything.
 > same guarantees). Both carry frontend tests (`api.export.test.ts`,
 > `api.study-export.test.ts`); 401s clear the token and signal login.
 
+## Live deployment attempt (2026-10-08)
+
+- Owner authorized redeploying the live server. The reviewed website removal
+  and a new private, read-only deployment verifier were published to the
+  private server repository. Main repo code is unchanged by this rollout.
+- Private server validation: 20 deployment-check tests, 376 full backend tests,
+  Docker build and disposable in-container verification passed. Independent
+  OpenCode review approved the verifier; GitHub CI passed for `c60b5d9`.
+- Live deployment is **incomplete**. The first attempt checked out the tested
+  commit but lost SSH during the pinned OpenCode runtime image build, before
+  container replacement or verification. One retry could not reach the host
+  over Tailscale (3 ping packets sent, none received). No successful live
+  verification or current runtime health is claimed; the cause is unconfirmed.
+- The owner was asked to check server power/Tailscale. Once connectivity is
+  restored, rerun the failed deployment for the tested commit and require the
+  new verification check to pass. Do not change provider pins or data to work
+  around an unreachable host.
+- Domain advice is a recommendation, not a locked product change: reserve an
+  affordable domain when committed to the Notaeo name; connect an API hostname
+  before outside student beta testing, once the server and core study flow are
+  reliable. Registration is optional during development; check renewal cost.
+
 ## Website removal (2026-10-07)
 
 - Owner explicitly requested complete website removal, including the local
@@ -32,8 +54,8 @@ Live state of the project. **Read this first** before doing anything.
   optional AI. Launch authentication uses the native request header only;
   query-token/cookie exchange is removed. Browser docs UIs and development
   CORS origins are removed. Server OpenAPI JSON remains available for tooling.
-- No live host has been redeployed and no data, keys or mobile development
-  harness has been removed. Older sections below record historical frontend
+- At completion on 2026-10-07, no live host had been redeployed and no data,
+  keys or mobile development harness had been removed. Older sections below record historical frontend
   work; their browser file paths and build commands are no longer current.
 - OpenCode workers implemented each repo independently after meaningful red
   tests: main removal 12 failed/4 passed; hosted removal 12 failed/1 passed.
