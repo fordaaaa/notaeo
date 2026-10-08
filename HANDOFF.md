@@ -23,6 +23,31 @@ Live state of the project. **Read this first** before doing anything.
 > same guarantees). Both carry frontend tests (`api.export.test.ts`,
 > `api.study-export.test.ts`); 401s clear the token and signal login.
 
+## AI reliability pass (2026-10-08)
+
+- Exam-coach AI sessions now persist the model that actually answered. When
+  a fallback model is used, practice and explanations show a notice through
+  the existing native UI. Basic practice keeps `model: null`; old saved
+  sessions without this field still load. Model comparisons use the settings
+  captured before inference, even if Settings changes during the request.
+- Unknown providers produce a safe `AIError` before any network request.
+  Existing BYOK routing and no-key basic practice remain intact.
+- OpenCode worker evidence: 6 regression tests failed before implementation,
+  then passed. Root caught a settings-change race with another failing test;
+  final targeted checks passed all 7 and the full public backend passed 491.
+  Independent OpenCode review approved the code. The macOS arm64 sidecar,
+  native app build and ad-hoc signature verification passed.
+- The private server received a separate owned-conversation history fix;
+  its shared backend snapshot still predates this repo's Exam coach, Groq
+  adapter and query-aware retrieval. Reconcile shared API parity explicitly
+  before presenting hosted AI as native feature parity; do not blindly sync.
+- Mocked tests validate plumbing, bounds and fallback behavior. No student
+  inference was run, and real explanation/practice quality is unevaluated.
+- Owner chose $0/month for now: free tiers and users' own keys. Provider
+  eligibility and current limits are documented in `docs/AI_OPTIONS.md`;
+  proposed hosted credits/storage and their enforcement belong to the private
+  server, and no allowance or billing is activated by this work.
+
 ## Live deployment attempt (2026-10-08)
 
 - Owner authorized redeploying the live server. The reviewed website removal

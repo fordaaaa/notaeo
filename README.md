@@ -37,14 +37,17 @@ only, with no website, browser login page or download landing page.
   the separate hosted server offers OpenCode free-model chat when configured.
   No local LLMs by design.
 
-To test a free AI tier, open Settings, select **Groq**, and add your own API
+For adult BYOK testing, open Settings, select **Groq**, and add your own API
 key from [Groq Console](https://console.groq.com). The default is
 `openai/gpt-oss-20b`, with a same-provider `openai/gpt-oss-120b` fallback.
-Account quotas apply; no key or free hosted allowance is bundled. Chat selects
+Account quotas apply; no key or free hosted allowance is bundled. Backend chat selects
 passages using the question, but retrieval is lexical and can still miss
 paraphrases. Source Search's **Find related passages** option adds a small
 academic alias dictionary and unambiguous one-edit typo correction; keyword
 search remains the default. [Search and practice details](docs/EXAM_COACH.md).
+Native AI is currently available in Exam coach; a general desktop chat screen
+is still pending. See [AI options and provider eligibility](docs/AI_OPTIONS.md)
+before configuring AI for a school-age audience.
 
 ## Stack
 
