@@ -73,7 +73,8 @@ def test_runtime_boundary_needs_launch_header_but_no_login(tmp_path, monkeypatch
         assert "web-search-explicit" in body["network_egress"]
         assert "url-ingest-explicit" in body["network_egress"]
         assert "site-index-refresh-explicit" in body["network_egress"]
-        assert "byok-ai-explicit" in body["network_egress"]
+        assert "managed-ai-explicit" in body["network_egress"]
+        assert "byok-ai-explicit" not in body["network_egress"]
         assert "google-oauth-explicit" in body["network_egress"]
         dumped = str(body).lower()
         assert "email" not in dumped
@@ -111,7 +112,8 @@ def test_local_runtime_module_declares_explicit_egress_only():
 
     assert "web-search-explicit" in EXPLICIT_EGRESS
     assert "url-ingest-explicit" in EXPLICIT_EGRESS
-    assert "byok-ai-explicit" in EXPLICIT_EGRESS
+    assert "managed-ai-explicit" in EXPLICIT_EGRESS
+    assert "byok-ai-explicit" not in EXPLICIT_EGRESS
     assert "google-oauth-explicit" in EXPLICIT_EGRESS
     assert not any("sync" in item for item in EXPLICIT_EGRESS)
     info = describe_runtime(desktop_session_required=True)

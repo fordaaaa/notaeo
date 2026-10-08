@@ -1,16 +1,15 @@
-"""Bounded exam-coach AI reliability/transparency regressions.
+"""Bounded exam-coach AI reliability/transparency regressions (managed service).
 
-Covers: actual fallback model preserved in API + saved reload, requested==actual
-has no substitution notice, malformed/basic have model None, legacy compat,
-explain substitution notice, and real-dispatcher transient->fallback path.
+Covers: actual returned model preserved in API + saved reload,
+requested==actual has no substitution notice, malformed/basic have
+model None, legacy compat, and explain actual-model + fallback.
 """
 from __future__ import annotations
 
 import json
 from datetime import timedelta
 
-import httpx
-
+from core.api import AIService
 from core.models import CoachSession, utcnow
 
 TEXT = (
@@ -57,111 +56,50 @@ def _tasks_payload(source_id: str) -> str:
     )
 
 
-def _status_error(status: int) -> httpx.HTTPStatusError:
-    request = httpx.Request("POST", "https://provider.invalid/v1")
-    response = httpx.Response(status, request=request)
-    return httpx.HTTPStatusError(f"{status} error", request=request, response=response)
-
-
-def test_real_dispatcher_fallback_model_preserved_in_api_and_reload(client, monkeypatch):
-    """Real providers.generate with transient failure falls back and preserves actual model."""
-    from core import openrouter, providers
-
+def test_managed_service_actual_model_preserved_in_api_and_reload(client):
+    """Managed handler's actual model is preserved in API, store reload, and state."""
     notebook, path, source, _ = _setup(client)
-    requested = "stale-model:free"
-    fallback = "nvidia/nemotron-3-ultra-550b-a55b:free"
-    client.put(
-        "/api/settings/ai",
-        json={"provider": "openrouter", "api_key": "sk-or-long-enough-key-123", "model": requested},
+    requested = "requested-model"
+    actual = "actual-model"
+    client.app.state.ai_service = AIService(
+        model=requested,
+        handler=lambda user_id, prompt: (_tasks_payload(source["id"]), actual),
     )
-    ai_tasks_json = _tasks_payload(source["id"])
-
-    class Response:
-        def raise_for_status(self):
-            pass
-
-        def json(self):
-            return {"choices": [{"message": {"content": ai_tasks_json}}]}
-
-    def post(url, headers=None, json=None, timeout=None):  # noqa: A002
-        assert json is not None
-        if json["model"] == requested:
-            raise _status_error(500)
-        return Response()
-
-    monkeypatch.setattr(openrouter.httpx, "post", post)
-    monkeypatch.setattr(providers, "sleep", lambda seconds: None)
 
     response = client.post(path + "/sessions", json={"use_ai": True})
     assert response.status_code in (200, 201), response.text
     session = response.json()
     assert session["generated_by"] == "ai"
-    # Actual fallback model must be exposed, with a friendly substitution notice.
-    assert session["model"] == fallback
-    assert session["notice"] is not None and fallback in session["notice"]
+    assert session["model"] == actual
 
     store = client.app.state.store
     uid = store.get_session_user(client.headers["authorization"].split()[1]).id
     reloaded = store.get_coach_session(uid, notebook["id"], session["id"])
-    assert reloaded.model == fallback
-    assert reloaded.notice is not None and fallback in reloaded.notice
+    assert reloaded.model == actual
     state = client.get(path).json()
     saved = next(item for item in state["sessions"] if item["id"] == session["id"])
-    assert saved["model"] == fallback
+    assert saved["model"] == actual
 
 
-def test_requested_model_same_has_no_substitution_notice(client, monkeypatch):
-    from core import providers
-
+def test_requested_model_same_has_no_substitution_notice(client):
     _, path, source, _ = _setup(client)
-    client.put("/api/settings/ai", json={"provider": "groq", "api_key": "gsk-test-key-long-enough"})
-    # Read back the configured requested model so equality is exact.
-    store = client.app.state.store
-    uid = store.get_session_user(client.headers["authorization"].split()[1]).id
-    requested = store.get_ai_settings(uid).model
-    assert requested
-
-    def generate(provider, key, model, prompt):
-        assert model == requested
-        return _tasks_payload(source["id"]), model
-
-    monkeypatch.setattr(providers, "generate", generate)
+    requested = "test-model"
+    client.app.state.ai_service = AIService(
+        model=requested,
+        handler=lambda user_id, prompt: (_tasks_payload(source["id"]), requested),
+    )
     session = client.post(path + "/sessions", json={"use_ai": True}).json()
     assert session["generated_by"] == "ai"
     assert session["model"] == requested
     assert session["notice"] is None
 
 
-def test_model_notice_uses_settings_at_request_start(client, monkeypatch):
-    from core import providers
-    from core.models import AISettingsUpdate
-
-    _, path, source, _ = _setup(client)
-    client.put("/api/settings/ai", json={"provider": "groq", "api_key": "gsk-test-key-long-enough"})
-    store = client.app.state.store
-    user = store.get_session_user(client.headers["authorization"].split()[1])
-    requested = store.get_ai_settings(user.id).model
-
-    def generate(provider, key, model, prompt):
-        # A settings save while the provider request is in flight must not
-        # turn an unchanged answering model into an alleged fallback.
-        store.save_ai_settings(user.id, AISettingsUpdate(
-            provider="groq", api_key="gsk-test-key-long-enough", model="openai/gpt-oss-120b",
-        ))
-        return _tasks_payload(source["id"]), model
-
-    monkeypatch.setattr(providers, "generate", generate)
-    session = client.post(path + "/sessions", json={"use_ai": True}).json()
-    assert session["model"] == requested
-    assert session["notice"] is None
-
-
-def test_malformed_payload_and_basic_have_no_model(client, monkeypatch):
-    from core import providers
-
+def test_malformed_payload_and_basic_have_no_model(client):
     _, path, _, _ = _setup(client)
-    client.put("/api/settings/ai", json={"provider": "groq", "api_key": "gsk-test-key-long-enough"})
-    monkeypatch.setattr(providers, "generate", lambda *args: ("not json", "some-model"))
+    client.app.state.ai_service = AIService(
+        model="test-model",
+        handler=lambda user_id, prompt: ("not json", "some-model"),
+    )
     bad = client.post(path + "/sessions", json={"use_ai": True}).json()
     assert bad["generated_by"] == "basic"
     assert "model" in bad and bad["model"] is None
@@ -195,43 +133,45 @@ def test_legacy_session_without_model_field_deserializes():
     assert session.model is None
 
 
-def test_explain_substitution_notice_and_fallback_preserved(client, monkeypatch):
-    from core import providers
-
+def test_explain_actual_model_preserved_and_fallback(client):
     _, path, source, _ = _setup(client)
-    client.put("/api/settings/ai", json={"provider": "groq", "api_key": "gsk-test-key-long-enough"})
-    store = client.app.state.store
-    uid = store.get_session_user(client.headers["authorization"].split()[1]).id
-    requested = store.get_ai_settings(uid).model
-    assert requested
-    actual = "openai/gpt-oss-120b"
-    assert actual != requested
-
+    requested = "test-model"
+    actual = "actual-explain-model"
     session = client.post(path + "/sessions", json={}).json()
     task = session["tasks"][0]
 
-    def generate(provider, key, model, prompt):
+    def generate(user_id, prompt):
         payload = {
             "answer": "Sunlight is converted into stored chemical energy [1].",
             "evidence_quote": QUOTE,
         }
         return json.dumps(payload), actual
 
-    monkeypatch.setattr(providers, "generate", generate)
+    client.app.state.ai_service = AIService(model=requested, handler=generate)
     result = client.post(
         f"{path}/sessions/{session['id']}/tasks/{task['id']}/explain", json={"use_ai": True}
     ).json()
     assert result["generated_by"] == "ai"
     assert result["model"] == actual
-    assert result["notice"] is not None and actual in result["notice"]
 
-    def failing(provider, key, model, prompt):
-        raise providers.AIError("AI could not answer right now.")
+    def failing(user_id, prompt):
+        raise RuntimeError("managed service unavailable")
 
-    monkeypatch.setattr(providers, "generate", failing)
+    client.app.state.ai_service = AIService(model=requested, handler=failing)
     fallback = client.post(
         f"{path}/sessions/{session['id']}/tasks/{task['id']}/explain", json={"use_ai": True}
     ).json()
     assert fallback["generated_by"] == "basic"
     assert fallback["model"] is None
     assert fallback["notice"]
+
+
+def test_disabled_service_falls_back_with_notice(client):
+    """Default disabled managed service never infers; use_ai falls back to basic."""
+    _, path, _, _ = _setup(client)
+    client.app.state.ai_service = AIService()
+    assert not client.app.state.ai_service.enabled
+    session = client.post(path + "/sessions", json={"use_ai": True}).json()
+    assert session["generated_by"] == "basic"
+    assert session["model"] is None
+    assert session["notice"]

@@ -188,11 +188,10 @@ struct CoachExplanation: Codable, Equatable, Sendable {
     var notice: String?
 }
 
-// MARK: - AI settings (mirrors GET/PUT /api/settings/ai)
+// MARK: - AI availability (mirrors authed GET /api/ai/status)
 
-struct AISettings: Codable, Equatable, Sendable {
-    var configured: Bool
-    var provider: String?
+struct AIStatus: Codable, Equatable, Sendable {
+    var enabled: Bool
     var model: String?
 }
 

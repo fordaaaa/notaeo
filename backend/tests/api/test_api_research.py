@@ -9,10 +9,12 @@ def _nb(client):
     return client.post("/api/notebooks", json={"name": "Research"}).json()
 
 
-def _put_settings(client):
-    client.put(
-        "/api/settings/ai",
-        json={"provider": "gemini", "api_key": "a-key-that-is-long-enough", "model": "gemini-test"},
+def _enable_service(client, handler=None):
+    from core.api import AIService
+
+    client.app.state.ai_service = AIService(
+        model="notaeo-test",
+        handler=handler or (lambda user_id, prompt: ("1. crab overview\n2. crab examples\n3. crab risks", "notaeo-test")),
     )
 
 
@@ -32,14 +34,9 @@ def test_plan_validates_topic_length(client):
     assert client.post(f"/api/notebooks/{nb['id']}/research/plan", json={"topic": "x" * 301}).status_code == 422
 
 
-def test_plan_uses_ai_when_configured(client, monkeypatch):
+def test_plan_uses_ai_when_configured(client):
     nb = _nb(client)
-    _put_settings(client)
-    monkeypatch.setattr(
-        research_api.providers,
-        "generate",
-        lambda provider, key, model, prompt: ("1. crab overview\n2. crab examples\n3. crab risks", "gemini-test"),
-    )
+    _enable_service(client)
     response = client.post(f"/api/notebooks/{nb['id']}/research/plan", json={"topic": "crabs"})
     assert response.status_code == 200
     body = response.json()
@@ -47,27 +44,23 @@ def test_plan_uses_ai_when_configured(client, monkeypatch):
     assert body["queries"] == ["crab overview", "crab examples", "crab risks"]
 
 
-def test_plan_falls_back_to_heuristic_on_ai_error(client, monkeypatch):
+def test_plan_falls_back_to_heuristic_on_ai_error(client):
+    from core.api import AIError, AIService
+
     nb = _nb(client)
-    _put_settings(client)
 
-    def boom(provider, key, model, prompt):
-        raise research_api.providers.AIError("rate-limited")
+    def boom(user_id, prompt):
+        raise AIError("rate-limited")
 
-    monkeypatch.setattr(research_api.providers, "generate", boom)
+    client.app.state.ai_service = AIService(model="notaeo-test", handler=boom)
     response = client.post(f"/api/notebooks/{nb['id']}/research/plan", json={"topic": "crabs"})
     assert response.status_code == 200
     assert response.json()["origin"] == "heuristic"
 
 
-def test_plan_falls_back_when_ai_output_unparseable(client, monkeypatch):
+def test_plan_falls_back_when_ai_output_unparseable(client):
     nb = _nb(client)
-    _put_settings(client)
-    monkeypatch.setattr(
-        research_api.providers,
-        "generate",
-        lambda provider, key, model, prompt: ("Sorry, I cannot help with that.", "gemini-test"),
-    )
+    _enable_service(client, handler=lambda user_id, prompt: ("Sorry, I cannot help with that.", "notaeo-test"))
     response = client.post(f"/api/notebooks/{nb['id']}/research/plan", json={"topic": "crabs"})
     assert response.status_code == 200
     assert response.json()["origin"] == "heuristic"
@@ -201,37 +194,33 @@ def test_synthesize_keyless_writes_digest_note(client):
     assert "Crabs One" in joined
 
 
-def test_synthesize_uses_ai_when_configured(client, monkeypatch):
+def test_synthesize_uses_ai_when_configured(client):
     nb = _nb(client)
-    _put_settings(client)
+    _enable_service(client, handler=lambda user_id, prompt: ("Crabs matter a lot [1].", "notaeo-test"))
     client.post(f"/api/notebooks/{nb['id']}/sources/text", json={"title": "Crabs", "text": "Crabs matter."})
-    monkeypatch.setattr(
-        research_api.providers,
-        "generate",
-        lambda provider, key, model, prompt: ("Crabs matter a lot [1].", model),
-    )
     response = client.post(
         f"/api/notebooks/{nb['id']}/research/synthesize", json={"topic": "crabs", "queries": []}
     )
     assert response.status_code == 201
     body = response.json()
     assert body["origin"] == "ai"
-    assert body["model"] == "gemini-test"
+    assert body["model"] == "notaeo-test"
     full = client.get(f"/api/sources/{body['source']['id']}").json()
     joined = "\n".join(chunk["text"] for chunk in full["chunks"])
     assert "Crabs matter a lot [1]." in joined
     assert "Sources:" in joined
 
 
-def test_synthesize_falls_back_to_digest_on_ai_error(client, monkeypatch):
+def test_synthesize_falls_back_to_digest_on_ai_error(client):
+    from core.api import AIError, AIService
+
     nb = _nb(client)
-    _put_settings(client)
     client.post(f"/api/notebooks/{nb['id']}/sources/text", json={"title": "Crabs", "text": "Crabs matter."})
 
-    def boom(provider, key, model, prompt):
-        raise research_api.providers.AIError("rate-limited")
+    def boom(user_id, prompt):
+        raise AIError("rate-limited")
 
-    monkeypatch.setattr(research_api.providers, "generate", boom)
+    client.app.state.ai_service = AIService(model="notaeo-test", handler=boom)
     response = client.post(
         f"/api/notebooks/{nb['id']}/research/synthesize", json={"topic": "crabs", "queries": []}
     )

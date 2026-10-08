@@ -7,8 +7,9 @@ from __future__ import annotations
 
 import re
 
-from fastapi import HTTPException, Path, Request
+from fastapi import FastAPI, HTTPException, Path, Request
 
+from core.api import AIService
 from core.models import User
 from core.store import Store
 
@@ -52,6 +53,15 @@ def safe_id(value: str = Path(...), name: str = "id") -> str:
 def get_store(app) -> Store:
     """Return the per-app Store singleton (set in lifespan)."""
     return app.state.store
+
+
+def get_ai_service(app: FastAPI) -> AIService:
+    """Return the per-app AIService (set in create_app, never in lifespan)."""
+    service = getattr(app.state, "ai_service", None)
+    if service is None:
+        service = AIService()
+        app.state.ai_service = service
+    return service
 
 
 def notebook_or_404(store: Store, user_id: str, notebook_id: str):

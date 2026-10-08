@@ -138,9 +138,8 @@ public sealed record CoachExplanation(
     [property: JsonPropertyName("generated_by")] string GeneratedBy,
     [property: JsonPropertyName("notice")] string? Notice);
 
-public sealed record AISettings(
-    [property: JsonPropertyName("configured")] bool Configured,
-    [property: JsonPropertyName("provider")] string? Provider,
+public sealed record AIStatus(
+    [property: JsonPropertyName("enabled")] bool Enabled,
     [property: JsonPropertyName("model")] string? Model);
 
 public sealed record SearchRequest(

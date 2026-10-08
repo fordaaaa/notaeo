@@ -118,7 +118,7 @@ struct CoachView: View {
                     Toggle("Use AI for practice", isOn: $useAi).disabled(!aiConfigured)
                 }
                 if !aiConfigured {
-                    Text("Source-based practice works now. Add an optional AI key in Settings for explanations.")
+                    Text("Source-based practice works now. AI availability is shown in Settings.")
                         .font(NativeType.caption).foregroundStyle(.secondary)
                         .lineSpacing(1)
                 }
@@ -367,8 +367,8 @@ struct CoachView: View {
                 sessionId = nil
             }
             responses = [:]; revealed = false; explanation = nil
-            let settings = try? await api.getAISettings()
-            aiConfigured = settings?.configured ?? false
+            let status = try? await api.getAIStatus()
+            aiConfigured = status?.enabled ?? false
         } catch {
             self.error = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
         }

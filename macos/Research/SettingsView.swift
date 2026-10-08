@@ -1,13 +1,12 @@
 import SwiftUI
 
-/// Native Settings: actual /api/settings/ai provider settings + sign out.
+/// Native Settings: account + appearance/motion preview + read-only AI availability.
 /// Available logged-out (AI section explains login is required).
 struct SettingsView: View {
     @EnvironmentObject private var appState: AppState
-    @State private var provider = "gemini"
-    @State private var apiKey = ""
-    @State private var model = "gemini-3.5-flash-lite"
-    @State private var configured = false
+    @State private var aiEnabled = false
+    @State private var aiModel: String?
+    @State private var aiLoaded = false
     @State private var busy = false
     @State private var message: String?
     @AppStorage("notaeo.native.appearance") private var appearance = "system"
@@ -19,13 +18,6 @@ struct SettingsView: View {
     private var motion: NativeMotionPolicy {
         NativeMotionPolicy(systemReduceMotion: systemReduceMotion, appReduceMotion: appReduceMotion)
     }
-
-    private let providers = ["gemini", "openrouter", "groq"]
-    private let defaultModels = [
-        "gemini": "gemini-3.5-flash-lite",
-        "openrouter": "nvidia/nemotron-3-ultra-550b-a55b:free",
-        "groq": "openai/gpt-oss-20b",
-    ]
 
     var body: some View {
         Form {
@@ -56,31 +48,25 @@ struct SettingsView: View {
                     Text(email).font(NativeType.body).textSelection(.enabled)
                     Button("Sign out") { Task { await appState.signOut() } }
                 } else {
-                    Text("Sign in to access your notebooks and optional AI settings.")
+                    Text("Sign in to access your notebooks and see AI availability.")
                         .font(NativeType.body).foregroundStyle(.secondary)
                         .lineSpacing(1)
                 }
             }
             Section("Optional AI") {
-                Text("Your key is saved with your account and used only when you request an AI feature.")
+                Text("Source, search, and practice work without AI.")
                     .font(NativeType.caption).foregroundStyle(.secondary)
-                Picker("Provider", selection: Binding(get: { provider }, set: {
-                    provider = $0
-                    model = defaultModels[$0] ?? model
-                    apiKey = ""
-                })) {
-                    ForEach(providers, id: \.self) { Text($0).tag($0) }
-                }
-                SecureField("API key", text: $apiKey).disabled(!appState.isLoggedIn)
-                TextField("Model", text: $model).textFieldStyle(.roundedBorder).disabled(!appState.isLoggedIn)
-                Text(configured ? "AI is configured." : "AI is not configured. Coach works without a key.")
-                    .font(NativeType.caption).foregroundStyle(.secondary)
-                HStack {
-                    Button(busy ? "Saving…" : (configured ? "Replace key" : "Enable AI")) {
-                        Task { await save() }
-                    }.disabled(busy || !appState.isLoggedIn || apiKey.trimmingCharacters(in: .whitespaces).count < 10)
-                    if configured {
-                        Button("Remove key") { Task { await remove() } }.disabled(busy || !appState.isLoggedIn)
+                if !appState.isLoggedIn {
+                    Text("Sign in to see AI availability.")
+                        .font(NativeType.body).foregroundStyle(.secondary)
+                } else if busy && !aiLoaded {
+                    ProgressView("Checking AI availability…")
+                        .font(NativeType.body)
+                } else if aiLoaded {
+                    Text(aiEnabled ? "AI is available." : "AI is not available. Source, search, and practice work without AI.")
+                        .font(NativeType.body).foregroundStyle(.secondary)
+                    if aiEnabled, let model = aiModel, !model.isEmpty {
+                        Text("Model: \(model)").font(NativeType.caption).foregroundStyle(.tertiary)
                     }
                 }
                 if let message {
@@ -101,7 +87,7 @@ struct SettingsView: View {
         .animation(motion.animation, value: previewing)
         .animation(motion.animation, value: message)
         .task(id: appState.accountToken) {
-            configured = false; apiKey = ""; message = nil
+            aiEnabled = false; aiModel = nil; aiLoaded = false; message = nil
             await load()
         }
         .onDisappear { previewTask?.cancel(); previewing = false }
@@ -112,39 +98,15 @@ struct SettingsView: View {
     private func load() async {
         guard appState.isLoggedIn, let api = api() else { return }
         let account = appState.accountToken
-        do {
-            let s = try await api.getAISettings()
-            guard !Task.isCancelled, account == appState.accountToken else { return }
-            configured = s.configured
-            if let p = s.provider { provider = p }
-            if let m = s.model, !m.isEmpty { model = m }
-        } catch {
-            guard !Task.isCancelled, account == appState.accountToken else { return }
-            message = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
-        }
-    }
-
-    private func save() async {
-        guard let api = api() else { message = "Sign in first."; return }
         busy = true; defer { busy = false }
         do {
-            let s = try await api.saveAISettings(provider: provider, apiKey: apiKey.trimmingCharacters(in: .whitespaces), model: model.trimmingCharacters(in: .whitespaces))
-            configured = s.configured
-            apiKey = ""
-            message = "AI settings saved."
+            let s = try await api.getAIStatus()
+            guard !Task.isCancelled, account == appState.accountToken else { return }
+            aiEnabled = s.enabled
+            aiModel = s.model
+            aiLoaded = true
         } catch {
-            message = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
-        }
-    }
-
-    private func remove() async {
-        guard let api = api() else { return }
-        busy = true; defer { busy = false }
-        do {
-            try await api.clearAISettings()
-            configured = false
-            message = "AI key removed."
-        } catch {
+            guard !Task.isCancelled, account == appState.accountToken else { return }
             message = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
         }
     }

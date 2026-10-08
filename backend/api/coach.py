@@ -6,7 +6,7 @@ from typing import TypeVar
 
 from fastapi import Depends, FastAPI, HTTPException
 
-from api.deps import get_current_user, get_store, notebook_or_404, safe_id
+from api.deps import get_ai_service, get_current_user, get_store, notebook_or_404, safe_id
 from core import coach
 from core.models import CoachAttemptInput, CoachExplanation, CoachGenerationRequest, CoachSession, CoachStartRequest, CoachState, ExamGoal, User
 from core.store import CoachConflict, Store
@@ -48,7 +48,7 @@ def register(app: FastAPI) -> None:
             raise HTTPException(status_code=400, detail="Set an exam goal before building a session")
         if any(item.status == "active" for item in current.sessions):
             raise HTTPException(status_code=409, detail="Finish your active session before building another")
-        return _result(lambda: store.create_coach_session(user.id, coach.build_session(store, user.id, notebook_id, current.goal, body.use_ai)))
+        return _result(lambda: store.create_coach_session(user.id, coach.build_session(store, user.id, notebook_id, current.goal, body.use_ai, service=get_ai_service(app))))
 
     @app.post("/api/notebooks/{notebook_id}/coach/sessions/{session_id}/start", response_model=CoachSession)
     def start(notebook_id: str, session_id: str, body: CoachStartRequest, user: User = Depends(get_current_user)) -> CoachSession:
@@ -77,4 +77,4 @@ def register(app: FastAPI) -> None:
         task = next((task for task in session.tasks if task.id == task_id), None)
         if task is None:
             raise HTTPException(status_code=404, detail="task not found")
-        return coach.explain_task(store, user.id, notebook_id, task, body.use_ai)
+        return coach.explain_task(store, user.id, notebook_id, task, body.use_ai, service=get_ai_service(app))

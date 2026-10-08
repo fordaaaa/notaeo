@@ -13,14 +13,14 @@ paid service.
 
 ## Student workflow to build next
 
-Owner selection, 2026-10-02: **AI exam coach — turn course material into
+Owner update, 2026-10-08: **Exam coach — turn course material into
 explanations, practice, and a revision plan.** This supersedes the earlier
 evidence-capture → essay-workspace → planning milestone order. The immediate
 need is: "My exam is coming up; what do I need to understand and revise next?"
 
-AI can lead the experience and positioning. Source links and recorded practice
-must make its suggestions assessable. Reading, basic planning, scheduled
-review, and exports remain useful without a provider key or during outages;
+The product helps students organise course material and revise without relying
+on AI. Source links and recorded practice make recommendations assessable.
+Reading, basic planning, scheduled review and exports work without AI;
 accounts, ownership, and the hosted boundary below remain required. The first
 exam-coach loop is implemented in the current working tree: save a notebook
 exam goal and time budget, choose/reorder a source-linked revision session,
@@ -74,7 +74,7 @@ provider billing or private research-server code is part of this work.
 - **This repo (`research`, public, MIT)** holds the complete useful
   keyless/no-AI local/self-hosted product: ingestion, search, reader, study
   tools, exports, keyless public-web discovery, native desktop clients,
-  the local service, and BYOK provider adapters.
+  the local service, and a disabled-by-default optional AI service interface.
 - **Private `fordaaaa/research-server`** is a separate repository and owns hosted operations only: cloud
   accounts infrastructure, managed cloud storage/sync,
   subscriptions/entitlements, hosted AI credits/routing, rate limits and
@@ -86,20 +86,21 @@ provider billing or private research-server code is part of this work.
 ## Accounts and AI
 
 - **Accounts are required.** Every notebook, source, outline, card, skill,
-  note, and AI key belongs to exactly one user; data routes enforce
+  and note belongs to exactly one user; data routes enforce
   ownership and cross-user access is always 404. Email + password today
   (pbkdf2 hashes, hashed bearer tokens, 30-day sessions); Google OAuth next,
   Apple at App Store time.
-- **AI is optional to configure; the exam-coach experience can lead with AI.**
-  Three supported modes:
-  1. **No-AI (first-class)** — discovery, ingest, search, reader, study
-     tools, and exports work with no provider configured.
-  2. **BYOK** — the user supplies their own key (Gemini, OpenRouter, or Groq),
-     stored per-user; used only for chat, synthesis, reports, and rewrites,
-     with keyless fallbacks wherever one exists.
-  3. **Hosted credits (planned)** — a limited free allowance plus paid tiers
-     later. Routing, entitlements, and billing live in the private
-     `research-server`, not here.
+- **AI is an optional tool, not a product requirement.** Owner update,
+  2026-10-08 supersedes personal-key configuration and AI-led positioning.
+  Sources, discovery, search, reader, study, basic revision and exports work
+  without AI. Native and mobile Settings show availability only; no personal
+  keys, provider selectors or model inputs are supported.
+- **One operator-managed service** may enhance explicitly requested chat,
+  explanations, planning and rewrites. The public local service is disabled
+  by default; the private server owns model configuration, credentials and
+  future allowances. There is no paid fallback or new billable integration.
+  Hosted credits and quota enforcement remain future work under the current
+  $0 budget. Status is authenticated metadata, not a usage entitlement.
 - **No local LLMs** (no Ollama) by owner decision. Optional remote AI must
   never become a product dependency.
 
@@ -127,7 +128,7 @@ provider billing or private research-server code is part of this work.
   every data route still requires the account Bearer token. Desktop builds
   have no browser CORS origins. `GET /api/runtime` states this
   boundary with no user data. Network egress stays explicit-only: web
-  search, educational-index refresh, URL ingest, BYOK AI, and Google OAuth run solely on direct user
+  search, educational-index refresh, URL ingest, optional managed AI, and Google OAuth run solely on direct user
   action over HTTPS — no implicit sync, telemetry, proxy, or evasion.
 - The Apple Developer Program ($99/yr) is budgeted only when App Store
   submission approaches — never as a build prerequisite.

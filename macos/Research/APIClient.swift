@@ -400,21 +400,11 @@ final class NotaeoAPI: NotebookSearching {
         return try decode(CoachExplanation.self, from: res.data)
     }
 
-    // MARK: - AI settings
+    // MARK: - AI availability (read-only operator status)
 
-    func getAISettings() async throws -> AISettings {
-        let res = try await send(path: "api/settings/ai", method: "GET")
-        return try decode(AISettings.self, from: res.data)
-    }
-
-    func saveAISettings(provider: String, apiKey: String, model: String) async throws -> AISettings {
-        struct Body: Encodable { var provider: String; var apiKey: String; var model: String }
-        let res = try await send(path: "api/settings/ai", method: "PUT", json: Body(provider: provider, apiKey: apiKey, model: model))
-        return try decode(AISettings.self, from: res.data)
-    }
-
-    func clearAISettings() async throws {
-        _ = try await send(path: "api/settings/ai", method: "DELETE")
+    func getAIStatus() async throws -> AIStatus {
+        let res = try await send(path: "api/ai/status", method: "GET")
+        return try decode(AIStatus.self, from: res.data)
     }
 }
 

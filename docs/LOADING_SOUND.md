@@ -77,7 +77,7 @@ same offline assets. Thinking orbs stay the AI-only indicator.
 ## Online enhancement hook (only if the network is there for another reason)
 
 Never fetch to unlock the loader. If the app is already online (web search,
-URL ingest, BYOK AI on explicit user action), an enhancement may swap the
+URL ingest, optional managed AI on explicit user action), an enhancement may swap the
 static boot card for a remote Lottie/skinned variant — same copy, same
 timing, same reduced-motion rule, and it must fall back to this offline
 folio on any failure. No such remote variant is bundled or required.

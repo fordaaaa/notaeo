@@ -17,7 +17,9 @@ def test_note_update_rejects_blank_title(client):
     assert response.status_code == 422
 
 
-def test_session_message_bounds_history_prompt(client, monkeypatch):
+def test_session_message_bounds_history_prompt(client):
+    from core.api import AIService
+
     nb = client.post("/api/notebooks", json={"name": "History bounds"}).json()
     client.post(
         f"/api/notebooks/{nb['id']}/sources/text",
@@ -26,19 +28,13 @@ def test_session_message_bounds_history_prompt(client, monkeypatch):
     session = client.post(
         f"/api/notebooks/{nb['id']}/chat/sessions", json={}
     ).json()
-    client.put(
-        "/api/settings/ai",
-        json={"api_key": "long-enough-test-key", "model": "test-model"},
-    )
-    from api import ai
-
     captured: dict[str, str] = {}
 
-    def fake_generate(provider, key, model, prompt):
+    def fake_handler(user_id, prompt):
         captured["prompt"] = prompt
-        return "ok", model
+        return "ok", "notaeo-test"
 
-    monkeypatch.setattr(ai.providers, "generate", fake_generate)
+    client.app.state.ai_service = AIService(model="notaeo-test", handler=fake_handler)
     long_question = "q" * 4000
     for _ in range(5):
         response = client.post(

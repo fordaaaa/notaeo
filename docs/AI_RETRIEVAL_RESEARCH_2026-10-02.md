@@ -1,5 +1,9 @@
 # AI and retrieval research
 
+> Historical investigation: personal-provider recommendations below were
+> superseded by the owner on 2026-10-08. Personal keys and adapters are removed;
+> see [current AI direction](AI_OPTIONS.md).
+
 Reviewed 2026-10-02. Provider limits can change. No live inference requests,
 account secrets, real user documents, or private research-server files were
 used in this investigation.

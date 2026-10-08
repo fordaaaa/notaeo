@@ -1,15 +1,16 @@
 """Keyless research workflow: plan sub-queries, gather ranked web candidates,
-and write an overview note. AI improves planning/synthesis when configured but
-never blocks the keyless path."""
+and write an overview note. AI improves planning/synthesis when the per-app
+service is enabled but never blocks the keyless path."""
 from __future__ import annotations
 
 from time import sleep
 
 from fastapi import Depends, FastAPI, HTTPException
 
-from api.deps import get_current_user, get_store, notebook_or_404, safe_id
+from api.deps import get_ai_service, get_current_user, get_store, notebook_or_404, safe_id
 from api.sources import _summary
-from core import api as providers, ingest, research, skills
+from core import ingest, research, skills
+from core.api import AIError
 from core.context import build_context
 from core.models import (
     ResearchCandidate,
@@ -34,15 +35,14 @@ def register(app: FastAPI) -> None:
         notebook_or_404(store, user.id, notebook_id)
         origin = "heuristic"
         queries = research.plan_queries(body.topic)
-        key = store.ai_key(user.id)
-        configured = store.get_ai_settings(user.id)
-        if key and configured.model:
+        service = get_ai_service(app)
+        if service.enabled:
             try:
-                answer, _ = providers.generate(
-                    configured.provider, key, configured.model, research.build_planner_prompt(body.topic)
+                answer, _ = service.generate(
+                    user.id, research.build_planner_prompt(body.topic)
                 )
                 ai_queries = research.parse_ai_queries(answer)
-            except providers.AIError:
+            except AIError:
                 ai_queries = []
             if len(ai_queries) >= 2:
                 queries, origin = ai_queries, "ai"
@@ -101,9 +101,8 @@ def register(app: FastAPI) -> None:
 
         origin, model = "digest", None
         text = research.build_digest(body.topic, body.queries, sources)
-        key = store.ai_key(user.id)
-        configured = store.get_ai_settings(user.id)
-        if key and configured.model:
+        service = get_ai_service(app)
+        if service.enabled:
             try:
                 excerpts, citations = build_context(store, notebook_id, source_ids=set(body.source_ids) if body.source_ids else None)
                 prompt = research.build_synthesis_prompt(body.topic, excerpts)
@@ -113,10 +112,8 @@ def register(app: FastAPI) -> None:
                 notes = store.get_memory(notebook_id)
                 if notes.strip():
                     prompt += "\n\n" + skills.memory_section(notes.strip())
-                answer, model = providers.generate(
-                    configured.provider,
-                    key,
-                    configured.model,
+                answer, model = service.generate(
+                    user.id,
                     prompt,
                 )
                 lines = [answer, "", "Sources:"]
@@ -125,7 +122,7 @@ def register(app: FastAPI) -> None:
                     for number, citation in enumerate(citations, start=1)
                 )
                 text, origin = "\n".join(lines), "ai"
-            except providers.AIError:
+            except AIError:
                 origin, model = "digest", None
 
         extra_meta: dict = {"research_topic": body.topic, "queries": body.queries, "origin": origin}

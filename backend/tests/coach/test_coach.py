@@ -3,7 +3,7 @@ import json
 
 import pytest
 
-from core import providers
+from core.api import AIService
 from core.models import utcnow
 from core.store import Store
 
@@ -14,6 +14,18 @@ TEXT = (
     "Mitochondria release energy from glucose during cellular respiration. "
     "Meiosis produces four haploid cells with half the chromosomes."
 )
+
+
+def _enable_ai(client, text, actual="test-model", requested="test-model", calls=None):
+    def handler(user_id, prompt):
+        if calls is not None:
+            calls.append(prompt)
+        return text, actual
+    client.app.state.ai_service = AIService(model=requested, handler=handler)
+
+
+def _disable_ai(client):
+    client.app.state.ai_service = AIService()
 
 
 def setup(client, *, minutes=20, material=True):
@@ -54,8 +66,10 @@ def rate(client, path, session, rating):
     return response.json()
 
 
-def test_persisted_revision_loop_prioritizes_latest_missed_topic(client, monkeypatch):
-    monkeypatch.setattr(providers, "generate", lambda *args: pytest.fail("basic study must not call AI"))
+def test_persisted_revision_loop_prioritizes_latest_missed_topic(client):
+    def _fail(user_id, prompt):
+        raise AssertionError("basic study must not call AI")
+    client.app.state.ai_service = AIService(model="test-model", handler=_fail)
     notebook, path, source, goal = setup(client)
     session = draft(client, path)
     assert session["generated_by"] == "basic"
@@ -144,47 +158,46 @@ def test_every_coach_route_requires_auth_and_hides_other_owners(client):
         assert client.request(method, endpoint, json=body, headers={"Authorization": f"Bearer {other['token']}"}).status_code == 404
 
 
-def test_ai_plan_uses_validated_source_evidence_and_explanation(client, monkeypatch):
+def test_ai_plan_uses_validated_source_evidence_and_explanation(client):
     _, path, source, _ = setup(client)
-    client.put("/api/settings/ai", json={"provider": "groq", "api_key": "gsk-test-key-long-enough"})
     payload = {"tasks": [{"topic": "Photosynthesis", "prompt": "What does photosynthesis convert?",
                           "answer": "Photosynthesis converts sunlight into chemical energy inside chloroplasts.",
                           "source_id": source["id"], "chunk_seq": 0}]}
     calls = []
-    def generate(provider, key, model, prompt):
-        calls.append(prompt)
-        return json.dumps(payload), model
-    monkeypatch.setattr(providers, "generate", generate)
+    _enable_ai(client, json.dumps(payload), actual="test-model", calls=calls)
     session = draft(client, path, use_ai=True)
     assert session["generated_by"] == "ai"
+    assert session["model"] == "test-model"
     assert session["tasks"][0]["source_id"] == source["id"]
     assert session["tasks"][0]["pages"] == [1]
-    assert "gsk-test-key" not in calls[0]
-    monkeypatch.setattr(providers, "generate", lambda provider, key, model, prompt: (json.dumps({"answer": "Sunlight is converted into stored chemical energy [1].", "evidence_quote": "Photosynthesis converts sunlight into chemical energy inside chloroplasts."}), model))
+    assert calls
+    _enable_ai(client, json.dumps({"answer": "Sunlight is converted into stored chemical energy [1].", "evidence_quote": "Photosynthesis converts sunlight into chemical energy inside chloroplasts."}))
     task = session["tasks"][0]
     result = client.post(f"{path}/sessions/{session['id']}/tasks/{task['id']}/explain", json={"use_ai": True})
     assert result.status_code == 200
     assert result.json()["generated_by"] == "ai"
+    assert result.json()["model"] == "test-model"
     assert result.json()["citations"][0]["source_id"] == source["id"]
 
 
 @pytest.mark.parametrize("result", ["not json", '{"tasks": [{"source_id": "ffffffffffff", "chunk_seq": 0, "topic": "Fake", "prompt": "Fake?", "answer": "Invented"}]}', '{"tasks": []}'])
-def test_ai_invalid_plan_falls_back_with_notice(client, monkeypatch, result):
+def test_ai_invalid_plan_falls_back_with_notice(client, result):
     _, path, _, _ = setup(client)
-    client.put("/api/settings/ai", json={"provider": "groq", "api_key": "gsk-test-key-long-enough"})
-    monkeypatch.setattr(providers, "generate", lambda provider, key, model, prompt: (result, model))
+    _enable_ai(client, result)
     session = draft(client, path, use_ai=True)
     assert session["generated_by"] == "basic"
+    assert session["model"] is None
     assert session["notice"]
     assert session["tasks"]
 
 
-def test_manual_flashcards_and_keyless_ai_request_remain_usable(client, monkeypatch):
-    monkeypatch.setattr(providers, "generate", lambda *args: pytest.fail("no provider request without a key"))
+def test_manual_flashcards_and_keyless_ai_request_remain_usable(client):
+    _disable_ai(client)
     notebook, path, _, _ = setup(client, material=False)
     card = client.post(f"/api/notebooks/{notebook['id']}/cards", json={"front": "What is osmosis?", "back": "Movement of water through a selectively permeable membrane."}).json()
     session = draft(client, path, use_ai=True)
     assert session["generated_by"] == "basic" and session["notice"]
+    assert session["model"] is None
     assert session["tasks"][0]["card_id"] == card["id"]
     result = client.post(f"{path}/sessions/{session['id']}/tasks/{session['tasks'][0]['id']}/explain", json={"use_ai": True}).json()
     assert result["answer"] == card["back"] and result["notice"]
@@ -199,13 +212,13 @@ def test_same_user_cannot_mix_sessions_between_notebooks(client):
         assert client.post(f"{second}/sessions/{session['id']}/{endpoint}", json=body).status_code == 404
 
 
-def test_ai_rejects_unsupported_answer_even_with_correct_source(client, monkeypatch):
+def test_ai_rejects_unsupported_answer_even_with_correct_source(client):
     _, path, source, _ = setup(client)
-    client.put("/api/settings/ai", json={"provider": "groq", "api_key": "gsk-test-key-long-enough"})
     payload = {"tasks": [{"topic": "Photosynthesis", "prompt": "What is it?", "answer": "Invented information absent from this source.", "source_id": source["id"], "chunk_seq": 0}]}
-    monkeypatch.setattr(providers, "generate", lambda provider, key, model, prompt: (json.dumps(payload), model))
+    _enable_ai(client, json.dumps(payload))
     session = draft(client, path, use_ai=True)
     assert session["generated_by"] == "basic" and session["notice"]
+    assert session["model"] is None
     assert all("Invented information" not in task["answer"] for task in session["tasks"])
 
 
@@ -271,12 +284,12 @@ def test_missed_topic_memory_survives_history_window(client):
 
 
 @pytest.mark.parametrize("answer", ["Invented plain explanation [99]", '{"answer":"Wrong citation [2]","evidence_quote":"Photosynthesis converts sunlight into chemical energy inside chloroplasts."}', '{"answer":"Claim [1]","evidence_quote":"Invented unsupported quote"}'])
-def test_invalid_ai_explanation_falls_back_to_reference(client, monkeypatch, answer):
+def test_invalid_ai_explanation_falls_back_to_reference(client, answer):
     _, path, _, _ = setup(client)
     session = draft(client, path)
-    client.put("/api/settings/ai", json={"provider": "groq", "api_key": "gsk-test-key-long-enough"})
-    monkeypatch.setattr(providers, "generate", lambda provider, key, model, prompt: (answer, model))
+    _enable_ai(client, answer)
     task = session["tasks"][0]
     response = client.post(f"{path}/sessions/{session['id']}/tasks/{task['id']}/explain", json={"use_ai": True}).json()
     assert response["generated_by"] == "basic"
+    assert response["model"] is None
     assert response["answer"] == task["answer"] and response["notice"]

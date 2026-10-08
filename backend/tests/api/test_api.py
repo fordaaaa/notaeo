@@ -15,29 +15,24 @@ def test_web_search_api(client, monkeypatch):
     assert response.json()[0]["url"] == "https://example.com"
 
 
-def test_ai_settings_and_grounded_chat(client, monkeypatch):
-    from api import ai
+def test_ai_settings_and_grounded_chat(client):
+    from core.api import AIService
 
-    assert client.get("/api/settings/ai").json()["configured"] is False
-    saved = client.put(
-        "/api/settings/ai",
-        json={"api_key": "a-key-that-is-not-returned-to-the-browser", "model": "gemini-test"},
-    ).json()
-    assert saved == {"configured": True, "provider": "gemini", "model": "gemini-test"}
+    assert client.get("/api/settings/ai").status_code == 404
+    assert client.get("/api/ai/status").json() == {"enabled": False, "model": None}
     nb = client.post("/api/notebooks", json={"name": "Chat"}).json()
     client.post(
         f"/api/notebooks/{nb['id']}/sources/text",
         json={"title": "Cells", "text": "Mitochondria make energy for cells."},
     )
-    monkeypatch.setattr(
-        ai.providers,
-        "generate",
-        lambda provider, key, model, prompt: ("Mitochondria make energy [1].", model),
+    client.app.state.ai_service = AIService(
+        model="notaeo-test",
+        handler=lambda user_id, prompt: ("Mitochondria make energy [1].", "notaeo-test"),
     )
     response = client.post(f"/api/notebooks/{nb['id']}/chat", json={"message": "What makes energy?"})
     assert response.status_code == 200
     assert response.json()["citations"][0]["source_title"] == "Cells"
-    assert response.json()["model"] == "gemini-test"
+    assert response.json()["model"] == "notaeo-test"
 
 
 def test_notebook_crud_upload_and_search(client):

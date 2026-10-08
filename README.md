@@ -2,14 +2,14 @@
 
 ![Local-first research notebook](docs/images/repository-preview.jpg)
 
-A free desktop exam coach for school. Collect course materials, read them in-app,
+A free desktop study organiser and exam coach for school. Collect course materials, read them in-app,
 set an exam goal, and work through a short revision session. The native workflow
 supports written answers, source-based explanations and saved self-ratings.
 AI is optional; an account is required.
 
 On macOS, open **Search** (or press **⌘F**) to find passages across a notebook.
 Filter by source type, include supported related terms, and open a result at
-its cited source page. Search works without an AI key.
+its cited source page. Search works without AI.
 
 **Know what to study next.** The first **exam coach** loop now lets you save an
 exam goal and time budget, choose a short revision session, record answers,
@@ -30,24 +30,18 @@ only, with no website, browser login page or download landing page.
   reading, study tools, and exports all work with no provider key
   configured.
 - **Accounts are required:** register a local account (free, instant) and
-  log in. Every notebook, source, outline, card, skill, note, and AI key
+  log in. Every notebook, source, outline, card, skill, and note
   belongs to exactly one user; cross-user access is always 404. Email +
   password today, Google OAuth next, Apple at App Store time.
-- **Optional AI:** the local app supports per-user Gemini, OpenRouter, or Groq keys;
-  the separate hosted server offers OpenCode free-model chat when configured.
+- **Optional AI:** one operator-managed service can enhance study on a hosted
+  server. The local app works without it; Settings shows availability, with
+  no personal API keys, provider selectors or model configuration.
   No local LLMs by design.
 
-For adult BYOK testing, open Settings, select **Groq**, and add your own API
-key from [Groq Console](https://console.groq.com). The default is
-`openai/gpt-oss-20b`, with a same-provider `openai/gpt-oss-120b` fallback.
-Account quotas apply; no key or free hosted allowance is bundled. Backend chat selects
-passages using the question, but retrieval is lexical and can still miss
-paraphrases. Source Search's **Find related passages** option adds a small
-academic alias dictionary and unambiguous one-edit typo correction; keyword
-search remains the default. [Search and practice details](docs/EXAM_COACH.md).
-Native AI is currently available in Exam coach; a general desktop chat screen
-is still pending. See [AI options and provider eligibility](docs/AI_OPTIONS.md)
-before configuring AI for a school-age audience.
+Native AI controls follow the authenticated `/api/ai/status` metadata. The
+local default is unavailable; source-based practice and reference answers
+remain useful. A general native chat screen is still pending. See
+[AI options](docs/AI_OPTIONS.md) and [search and practice details](docs/EXAM_COACH.md).
 
 ## Stack
 
@@ -63,7 +57,7 @@ before configuring AI for a school-age audience.
 
 This repo is the complete useful keyless/no-AI local/self-hosted product:
 ingestion, search, reader, study tools, exports, discovery, shared UI,
-local service, and BYOK adapters. Hosted operations (managed storage/sync,
+local service, and an optional AI interface. Hosted operations (managed storage/sync,
 subscriptions/entitlements, hosted AI credits/routing, rate limits, admin
 tooling, production secrets) live in the private `fordaaaa/research-server`
 and are never required here. Details: [`docs/PRODUCT.md`](docs/PRODUCT.md).
@@ -102,7 +96,7 @@ Public notarization is intentionally not part of the $0 build.
 Local privacy boundary: loopback-only sidecar (`127.0.0.1`, ephemeral
 port) + per-launch native request token, with email login still required
 on every data route. `GET /api/runtime` reports the boundary. Network use
-is explicit-only (web search, URL ingest, BYOK AI, Google OAuth) — no
+is explicit-only (web search, URL ingest, optional managed AI, Google OAuth) — no
 implicit sync. Details: [`docs/PRODUCT.md`](docs/PRODUCT.md).
 
 - **Windows desktop** is now an active target. Its shell and packaging live

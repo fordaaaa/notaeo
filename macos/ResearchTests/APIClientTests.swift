@@ -459,3 +459,46 @@ final class CoachResumeTests: XCTestCase {
         XCTAssertEqual(sawBody["task_ids"] as? [String], ["111111111111"])
     }
 }
+
+// MARK: - AI availability (read-only operator status, no personal keys)
+
+final class AIStatusTests: XCTestCase {
+    override func tearDown() {
+        StubURLProtocol.handler = nil
+        super.tearDown()
+    }
+
+    func testAIStatusRequestsAuthedStatusPathAndDecodesDisabled() async throws {
+        StubURLProtocol.handler = { request in
+            XCTAssertEqual(request.url?.path, "/api/ai/status")
+            XCTAssertEqual(request.httpMethod, "GET")
+            XCTAssertEqual(request.value(forHTTPHeaderField: "Authorization"), "Bearer acct-1")
+            XCTAssertEqual(request.value(forHTTPHeaderField: "X-Notaeo-Desktop-Token"), "desk-per-launch")
+            return (http(request.url!, status: 200), Data(#"{"enabled":false,"model":null}"#.utf8))
+        }
+        let status = try await api().getAIStatus()
+        XCTAssertFalse(status.enabled)
+        XCTAssertNil(status.model)
+    }
+
+    func testAIStatusDecodesEnabledWithModel() async throws {
+        StubURLProtocol.handler = { request in
+            XCTAssertEqual(request.url?.path, "/api/ai/status")
+            return (http(request.url!, status: 200), Data(#"{"enabled":true,"model":"operator-fixed-1"}"#.utf8))
+        }
+        let status = try await api().getAIStatus()
+        XCTAssertTrue(status.enabled)
+        XCTAssertEqual(status.model, "operator-fixed-1")
+    }
+
+    func testAIStatusGuestOmitsBearerButKeepsDesktopToken() async throws {
+        StubURLProtocol.handler = { request in
+            XCTAssertEqual(request.url?.path, "/api/ai/status")
+            XCTAssertNil(request.value(forHTTPHeaderField: "Authorization"))
+            XCTAssertEqual(request.value(forHTTPHeaderField: "X-Notaeo-Desktop-Token"), "desk-per-launch")
+            return (http(request.url!, status: 200), Data(#"{"enabled":false,"model":null}"#.utf8))
+        }
+        let status = try await api(token: nil).getAIStatus()
+        XCTAssertFalse(status.enabled)
+    }
+}

@@ -1,47 +1,40 @@
-# AI options and current limitations
+# Optional AI
 
-Checked 2026-10-08. Notaeo's current budget is $0 for hosted AI. The native
-exam coach can generate source-linked practice and explanations using a
-user's own provider key in Settings. Reading, search, basic practice and
-exports remain useful without one. Keys are never returned by the settings
-API; the local SQLite database stores configured keys, so protect the app's
-data directory and its backups.
+Owner direction, 2026-10-08: Notaeo helps students organise sources and revise
+without relying on AI. Personal AI keys, provider selection, key storage and
+direct provider adapters are removed. Settings shows service availability only.
 
-The native desktop apps currently expose AI through Exam coach; they do not
-yet have a general chat screen. Backend chat APIs are not a shipped native
-chat experience. Provider response handling and grounding have mocked
-regression tests; real answer quality and usefulness still need evaluation.
+The public local backend has no inference handler by default. Sources, local
+search, selected-site discovery, reading, flashcards, guides, mind maps, basic
+exam practice, recorded attempts and exports work without AI. Optional coach
+requests fall back to source-based practice or the saved reference answer when
+the service is unavailable or the response cannot be grounded. AI-only chat
+and rewrite endpoints report unavailability rather than invent an answer.
 
-## Free provider access
+## One service, owned by the operator
 
-For an adult evaluating BYOK, Groq is already supported. Its current
-[free-plan limits](https://console.groq.com/docs/rate-limits) for GPT-OSS 20B
-include 200,000 tokens/day and 8,000 tokens/minute across an organization.
-Requests can hit token limits before the request count is exhausted. Exact
-account limits and availability can change. Read its
-[services agreement](https://console.groq.com/docs/legal/services-agreement)
-and [data controls](https://console.groq.com/docs/your-data); provider accounts
-require adult eligibility. Do not assume a student's uploaded content stays
-on their device after they deliberately request an AI feature.
+An application may inject one `AIService` through its own app state. It receives
+the authenticated user's identity and a bounded prompt; model selection and
+service credentials belong to the private server. Public clients receive only
+authenticated `/api/ai/status` metadata: `enabled` and an optional model name.
+The compatibility hosted-status route is retained. Neither exposes credentials.
 
-[OpenRouter](https://openrouter.ai/docs/api_reference/limits) also has free
-model variants with account-wide request caps and provider-specific data
-policies. Fallbacks can choose another same-provider model when one fails;
-availability is not guaranteed. BYOK costs and provider quotas are the user's.
+The private server's existing OpenCode bridge remains the optional engine.
+No new paid integration, account registration, model download or inference is
+activated by this change. Its existing enable flag is off by default. Provider
+free offers can change; a $0 budget does not create a guaranteed AI allowance.
+Usage accounting and free hosted quotas still need implementation in the
+private server before they can be advertised.
 
-[Gemini's API terms](https://ai.google.dev/gemini-api/terms) prohibit applications
-directed towards, or likely accessed by, people under 18. Unpaid content can
-be used to improve Google products and reviewed by humans, with regional
-exceptions. Although its adapter remains available, do not choose it as the
-default for a school-age rollout. Provider eligibility needs to be settled
-before enabling hosted AI for minors; no age policy or provider account is
-created by this document.
+Legacy account key records are logically dropped when the updated store opens
+its database. User accounts, notebooks, sources and study records are retained.
+This migration does not claim forensic erasure of SQLite pages or old backups.
+The JSON import skips retired AI settings.
 
-## Hosted allowance
+## Quality and model research
 
-Storage quotas, free hosted AI credits, provider billing, usage counters and
-startup-credit applications belong to the separate private server project.
-There is no bundled cloud-storage allowance or guaranteed hosted AI credit
-in this app. A provider's free tier is shared capacity, not an unlimited
-per-student entitlement. A paid fallback must never be used to make a free
-hosted offer appear unlimited. Local flows remain independent of hosted plans.
+Mocked tests validate grounding references, ownership, fallbacks and request
+handling. They do not establish real explanation accuracy or student usefulness.
+Native desktop apps expose optional AI in Exam coach; a general chat screen
+is still pending. Read [decision-model research](DECISION_MODELS.md) for Jev
+and Laya; neither is installed or integrated.

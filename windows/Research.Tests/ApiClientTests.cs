@@ -294,3 +294,74 @@ public sealed class ApiClientTests
         Assert.Contains("limit=25", query!);
     }
 }
+
+public sealed class AIStatusTests
+{
+    [Fact]
+    public async Task AIStatusRequestsAuthedStatusPathAndDecodesDisabled()
+    {
+        string? path = null;
+        string? auth = null;
+        string? desk = null;
+        string? method = null;
+        var api = Fake.Api(req =>
+        {
+            path = req.RequestUri!.AbsolutePath;
+            method = req.Method.Method;
+            auth = req.Headers.Authorization?.ToString();
+            desk = req.Headers.TryGetValues(NotaeoApi.DesktopTokenHeader, out var v) ? v.FirstOrDefault() : null;
+            return Fake.Json("{\"enabled\":false,\"model\":null}", HttpStatusCode.OK);
+        });
+        var status = await api.GetAIStatusAsync();
+        Assert.Equal("/api/ai/status", path);
+        Assert.Equal("GET", method);
+        Assert.Equal("Bearer acct-1", auth);
+        Assert.Equal("desk-per-launch", desk);
+        Assert.False(status.Enabled);
+        Assert.Null(status.Model);
+    }
+
+    [Fact]
+    public async Task AIStatusDecodesEnabledWithModel()
+    {
+        var api = Fake.Api(_ => Fake.Json("{\"enabled\":true,\"model\":\"operator-fixed-1\"}", HttpStatusCode.OK));
+        var status = await api.GetAIStatusAsync();
+        Assert.True(status.Enabled);
+        Assert.Equal("operator-fixed-1", status.Model);
+    }
+
+    [Fact]
+    public async Task AIStatusGuestOmitsBearerButKeepsDesktopToken()
+    {
+        string? auth = null;
+        string? desk = null;
+        string? path = null;
+        var api = Fake.Api(req =>
+        {
+            path = req.RequestUri!.AbsolutePath;
+            auth = req.Headers.Authorization?.ToString();
+            desk = req.Headers.TryGetValues(NotaeoApi.DesktopTokenHeader, out var v) ? v.FirstOrDefault() : null;
+            return Fake.Json("{\"enabled\":false,\"model\":null}", HttpStatusCode.OK);
+        }, accountToken: null);
+        var status = await api.GetAIStatusAsync();
+        Assert.Equal("/api/ai/status", path);
+        Assert.Null(auth);
+        Assert.Equal("desk-per-launch", desk);
+        Assert.False(status.Enabled);
+    }
+
+    [Fact]
+    public void PersonalKeySurfaceIsRemoved()
+    {
+        var names = typeof(NotaeoApi).GetMethods().Select(m => m.Name).ToHashSet();
+        Assert.Contains("GetAIStatusAsync", names);
+        Assert.DoesNotContain("GetAISettingsAsync", names);
+        Assert.DoesNotContain("SaveAISettingsAsync", names);
+        Assert.DoesNotContain("ClearAISettingsAsync", names);
+        var statusProps = typeof(AIStatus).GetProperties().Select(p => p.Name).ToHashSet();
+        Assert.Contains("Enabled", statusProps);
+        Assert.Contains("Model", statusProps);
+        Assert.DoesNotContain("Provider", statusProps);
+        Assert.DoesNotContain("Configured", statusProps);
+    }
+}

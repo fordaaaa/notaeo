@@ -12,8 +12,8 @@ FastAPI sidecar (`backend/desktop.py`) as a pure JSON API.
   account-owned Site index with explicit five-page refresh, cited Mind map with graph/outline/Markdown export,
   exam coach (goal/save/build/select/start/
   resume/write/reveal/self-rate/finish/history/AI explanations), and native
-  Settings (actual `/api/settings/ai` provider settings + sign out, available
-  logged-out) via a visible button plus Ctrl+,. Thinking orbs show pending
+   Settings (read-only `/api/ai/status` AI availability + sign out, available
+   logged-out) via a visible button plus Ctrl+,. Thinking orbs show pending
   search/map/optional-AI work; Settings has Reduce Motion and a local preview.
 - `Research.Tests/` — portable `net10.0` xUnit suite for the UI-independent
   units. It links the actual shipping sources (`DesktopStartup`, `Models`,

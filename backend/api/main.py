@@ -36,6 +36,7 @@ from api import (
     study,
     web,
 )
+from core.api import AIService
 from core.local_runtime import describe_runtime
 from core.store import Store
 
@@ -81,6 +82,9 @@ def create_app() -> FastAPI:
         redoc_url=None,
         openapi_url=None if desktop_token else "/openapi.json",
     )
+    # Per-app AI service: disabled by default; private/hosted factory or tests
+    # replace app.state.ai_service. Set here (not in lifespan) so injection survives.
+    app.state.ai_service = AIService()
     # Native clients need no browser cross-origin access.
     app.add_middleware(
         CORSMiddleware,

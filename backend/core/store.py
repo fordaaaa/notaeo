@@ -17,8 +17,6 @@ from pathlib import Path
 from typing import Any
 
 from core.models import (
-    AISettings,
-    AISettingsUpdate,
     ActivityDay,
     Assignment,
     CalendarCardDue,
@@ -189,12 +187,6 @@ CREATE TABLE IF NOT EXISTS chat_messages (
     created_at TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_chat_messages_session ON chat_messages(session_id, created_at);
-CREATE TABLE IF NOT EXISTS ai_settings (
-    user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
-    provider TEXT NOT NULL,
-    api_key TEXT NOT NULL,
-    model TEXT NOT NULL
-);
 CREATE TABLE IF NOT EXISTS user_progress (
     user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     key TEXT NOT NULL,
@@ -310,6 +302,8 @@ class Store:
         self.db_path = self.root / "app.db"
         with self._connect() as con:
             con.executescript(_SCHEMA)
+            # Drop retired credentials; a failed migration must fail startup.
+            con.execute("DROP TABLE IF EXISTS ai_settings")
             try:
                 con.execute("ALTER TABLE users ADD COLUMN google_sub TEXT")
             except Exception:
@@ -571,43 +565,6 @@ class Store:
                 (utcnow().isoformat(),),
             )
             return cur.rowcount
-
-    # ---------- AI settings (per user) ----------
-
-    def get_ai_settings(self, user_id: str) -> AISettings:
-        from core.models import AI_DEFAULT_MODELS  # noqa: PLC0415
-
-        with self._connect() as con:
-            row = con.execute(
-                "SELECT * FROM ai_settings WHERE user_id = ?", (user_id,)
-            ).fetchone()
-        if not row or not row["api_key"]:
-            return AISettings(configured=False)
-        provider = row["provider"] if row["provider"] in AI_DEFAULT_MODELS else "gemini"
-        model = row["model"] or AI_DEFAULT_MODELS[provider]
-        return AISettings(configured=True, provider=provider, model=model)  # type: ignore[arg-type]
-
-    def ai_key(self, user_id: str) -> str | None:
-        with self._connect() as con:
-            row = con.execute(
-                "SELECT api_key FROM ai_settings WHERE user_id = ?", (user_id,)
-            ).fetchone()
-        return row["api_key"] if row and row["api_key"] else None
-
-    def save_ai_settings(self, user_id: str, body: AISettingsUpdate) -> AISettings:
-        with self._connect() as con:
-            con.execute(
-                "INSERT INTO ai_settings (user_id, provider, api_key, model)"
-                " VALUES (?, ?, ?, ?)"
-                " ON CONFLICT(user_id) DO UPDATE SET provider=excluded.provider,"
-                " api_key=excluded.api_key, model=excluded.model",
-                (user_id, body.provider, body.api_key, body.model),
-            )
-        return AISettings(configured=True, provider=body.provider, model=body.model)
-
-    def clear_ai_settings(self, user_id: str) -> None:
-        with self._connect() as con:
-            con.execute("DELETE FROM ai_settings WHERE user_id = ?", (user_id,))
 
     # ---------- onboarding progress (per user, survives new devices) ----------
 

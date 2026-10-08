@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from api import outlines as outlines_api
+from core.api import AIService
 from core.models import WebSearchResult
 from core.websearch import WebSearchError
 
@@ -61,6 +62,7 @@ def test_outline_404s(client):
 
 
 def test_draft_keyless_returns_heuristic(client):
+    client.app.state.ai_service = AIService()
     nb = _nb(client)
     body = client.post(f"/api/notebooks/{nb['id']}/outlines/draft", json={"topic": "crab biology"}).json()
     assert body["origin"] == "heuristic"
@@ -68,17 +70,13 @@ def test_draft_keyless_returns_heuristic(client):
     assert "Overview" in body["fields"]
 
 
-def test_draft_uses_ai_when_configured(client, monkeypatch):
+def test_draft_uses_ai_when_configured(client):
     nb = _nb(client)
-    client.put(
-        "/api/settings/ai",
-        json={"provider": "gemini", "api_key": "a-key-that-is-long-enough", "model": "gemini-test"},
-    )
-    monkeypatch.setattr(
-        outlines_api.providers,
-        "generate",
-        lambda provider, key, model, prompt: (
-            "ITEMS:\nBlue crab\nKing crab\nFIELDS:\nHabitat\nDiet", "gemini-test",
+    client.app.state.ai_service = AIService(
+        model="test-model",
+        handler=lambda user_id, prompt: (
+            "ITEMS:\nBlue crab\nKing crab\nFIELDS:\nHabitat\nDiet",
+            "test-model",
         ),
     )
     body = client.post(f"/api/notebooks/{nb['id']}/outlines/draft", json={"topic": "crabs"}).json()

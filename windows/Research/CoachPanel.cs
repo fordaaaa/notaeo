@@ -133,7 +133,7 @@ internal sealed class CoachPanel : UserControl
         layout.Controls.Add(row2);
         layout.Controls.Add(row3);
         layout.Controls.Add(row4);
-        layout.Controls.Add(new Label { Text = "Source-based practice works now. Add an optional AI key in Settings for explanations.", AutoSize = true, MaximumSize = new Size(600, 0) });
+        layout.Controls.Add(new Label { Text = "Source-based practice works now. AI availability is shown in Settings.", AutoSize = true, MaximumSize = new Size(600, 0) });
         layout.Controls.Add(_savedGoalLabel);
         layout.Controls.Add(row5);
         box.Controls.Add(layout);
@@ -315,13 +315,13 @@ internal sealed class CoachPanel : UserControl
 
             try
             {
-                var settings = await api.GetAISettingsAsync().ConfigureAwait(true);
+                var status = await api.GetAIStatusAsync().ConfigureAwait(true);
                 if (epoch != _epoch)
                 {
                     return;
                 }
 
-                _aiConfigured = settings.Configured;
+                _aiConfigured = status.Enabled;
             }
             catch (ApiException)
             {

@@ -1,39 +1,33 @@
-"""Optional, cited notebook chat backed by a user-supplied free-tier key."""
+"""Cited notebook chat backed by the per-app AI service (no keys)."""
 from __future__ import annotations
 
 from fastapi import Depends, FastAPI, HTTPException, Query
 
-from api.deps import get_current_user, get_store, notebook_or_404, safe_id
-from core import api as providers, skills
+from api.deps import get_ai_service, get_current_user, get_store, notebook_or_404, safe_id
+from core.api import AIError
+from core import skills
 from core.context import build_context, build_note_excerpts
-from core.models import AISettingsUpdate, ChatMessage, ChatRequest, ChatResponse, ChatSession, ChatSessionCreate, User, utcnow
+from core.models import ChatMessage, ChatRequest, ChatResponse, ChatSession, ChatSessionCreate, User, utcnow
 from core.store import new_id
 
 MAX_SESSION_HISTORY_CHARS = 4_000
 
 
 def register(app: FastAPI) -> None:
+    @app.get("/api/ai/status")
+    def ai_status(user: User = Depends(get_current_user)):
+        service = get_ai_service(app)
+        return {"enabled": service.enabled, "model": service.model if service.enabled else None}
+
     @app.get("/api/ai/hosted/status")
     def hosted_status(user: User = Depends(get_current_user)):
-        """Whether server-side hosted AI is available for this user.
-
-        This repo ships no hosted inference server, so the local default is
-        honestly `{"enabled": false}`. The private research-server overrides
-        this route when present to advertise hosted AI credits/routing.
-        """
-        return {"enabled": False}
-
-    @app.get("/api/settings/ai")
-    def get_settings(user: User = Depends(get_current_user)):
-        return get_store(app).get_ai_settings(user.id)
-
-    @app.put("/api/settings/ai")
-    def update_settings(body: AISettingsUpdate, user: User = Depends(get_current_user)):
-        return get_store(app).save_ai_settings(user.id, body)
-
-    @app.delete("/api/settings/ai", status_code=204)
-    def delete_settings(user: User = Depends(get_current_user)):
-        get_store(app).clear_ai_settings(user.id)
+        """Hosted alias retained for private research-server compatibility."""
+        service = get_ai_service(app)
+        return {
+            "enabled": service.enabled,
+            "model": service.model if service.enabled else None,
+            "allowance_remaining": None,
+        }
 
     @app.get("/api/notebooks/{notebook_id}/chat/sessions", response_model=list[ChatSession])
     def list_sessions(notebook_id: str, user: User = Depends(get_current_user)):
@@ -101,10 +95,9 @@ def register(app: FastAPI) -> None:
         session = store.get_chat_session(notebook_id, session_id)
         if not session:
             raise HTTPException(status_code=404, detail="chat session not found")
-        key = store.ai_key(user.id)
-        configured = store.get_ai_settings(user.id)
-        if not key or not configured.model:
-            raise HTTPException(status_code=503, detail="add an AI provider key in Settings to use AI chat")
+        service = get_ai_service(app)
+        if not service.enabled:
+            raise HTTPException(status_code=503, detail="AI is unavailable right now. Try again later.")
         excerpts, citations = build_context(store, notebook_id, query=body.message)
         note_excerpts = build_note_excerpts(store, notebook_id)
         memory = store.get_memory(notebook_id).strip()[:3000]
@@ -112,7 +105,7 @@ def register(app: FastAPI) -> None:
             note_excerpts.append(memory)
         if not excerpts and not note_excerpts:
             raise HTTPException(status_code=400, detail="add a source or note before asking AI")
-        history = store.list_chat_messages(session_id)[-8:]
+        history = store.list_chat_messages(session_id, limit=8)
         history_text = "\n".join(f"{message.role.upper()}: {message.text}" for message in history)
         if len(history_text) > MAX_SESSION_HISTORY_CHARS:
             history_text = history_text[-MAX_SESSION_HISTORY_CHARS:]
@@ -128,8 +121,8 @@ def register(app: FastAPI) -> None:
         if matched:
             prompt += "\n\n" + skills.skills_section(matched)
         try:
-            answer, used_model = providers.generate(configured.provider, key, configured.model, prompt)
-        except providers.AIError as exc:
+            answer, used_model = service.generate(user.id, prompt)
+        except AIError as exc:
             raise HTTPException(status_code=502, detail=str(exc)) from exc
         return store.append_chat_exchange(session, body.message, answer, citations, used_model)
 
@@ -138,10 +131,9 @@ def register(app: FastAPI) -> None:
         notebook_id = safe_id(notebook_id, "notebook_id")
         store = get_store(app)
         notebook_or_404(store, user.id, notebook_id)
-        key = store.ai_key(user.id)
-        configured = store.get_ai_settings(user.id)
-        if not key or not configured.model:
-            raise HTTPException(status_code=503, detail="add an AI provider key in Settings to use AI chat")
+        service = get_ai_service(app)
+        if not service.enabled:
+            raise HTTPException(status_code=503, detail="AI is unavailable right now. Try again later.")
 
         excerpts, citations = build_context(store, notebook_id, query=body.message)
         if not excerpts:
@@ -158,7 +150,7 @@ def register(app: FastAPI) -> None:
         if notes.strip():
             prompt += "\n\n" + skills.memory_section(notes.strip())
         try:
-            answer, used_model = providers.generate(configured.provider, key, configured.model, prompt)
-        except providers.AIError as exc:
+            answer, used_model = service.generate(user.id, prompt)
+        except AIError as exc:
             raise HTTPException(status_code=502, detail=str(exc)) from exc
         return ChatResponse(answer=answer, citations=citations, model=used_model)

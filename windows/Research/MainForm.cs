@@ -1,6 +1,6 @@
 // Native WinForms shell: owns the backend process and hosts the workspace in
-// actual native controls (no WebView). Settings are a native dialog bound to
-// /api/settings/ai; the shell exposes a visible Settings button plus Ctrl+,.
+// actual native controls (no WebView). Settings are a native dialog showing
+// read-only AI availability (/api/ai/status); the shell exposes a visible Settings button plus Ctrl+,.
 namespace Notaeo;
 
 internal sealed class MainForm : Form

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from api import ai as ai_api
+from core.api import AIService
 from core import skills
 from core.models import Skill
 
@@ -66,12 +66,8 @@ def test_memory_404_unknown_notebook(client):
     assert client.get("/api/notebooks/aaaaaaaaaaaa/memory").status_code == 404
 
 
-def test_chat_includes_matched_skill_and_memory(client, monkeypatch):
+def test_chat_includes_matched_skill_and_memory(client):
     nb = client.post("/api/notebooks", json={"name": "Study"}).json()
-    client.put(
-        "/api/settings/ai",
-        json={"provider": "gemini", "api_key": "a-key-that-is-long-enough", "model": "gemini-test"},
-    )
     client.post(f"/api/notebooks/{nb['id']}/sources/text", json={"title": "Notes", "text": "Mitosis has four phases."})
     client.post(
         "/api/skills",
@@ -81,23 +77,19 @@ def test_chat_includes_matched_skill_and_memory(client, monkeypatch):
 
     prompts: list[str] = []
 
-    def fake_generate(provider, key, model, prompt):
+    def fake_generate(user_id, prompt):
         prompts.append(prompt)
-        return ("Answer [1].", model)
+        return ("Answer [1].", "test-model")
 
-    monkeypatch.setattr(ai_api.providers, "generate", fake_generate)
+    client.app.state.ai_service = AIService(model="test-model", handler=fake_generate)
     response = client.post(f"/api/notebooks/{nb['id']}/chat", json={"message": "quiz me for the exam"})
     assert response.status_code == 200
     assert "Answer with flashcards." in prompts[0]
     assert "midterm covers mitosis" in prompts[0]
 
 
-def test_chat_ignores_unmatched_skills(client, monkeypatch):
+def test_chat_ignores_unmatched_skills(client):
     nb = client.post("/api/notebooks", json={"name": "Study"}).json()
-    client.put(
-        "/api/settings/ai",
-        json={"provider": "gemini", "api_key": "a-key-that-is-long-enough", "model": "gemini-test"},
-    )
     client.post(f"/api/notebooks/{nb['id']}/sources/text", json={"title": "Notes", "text": "Mitosis facts."})
     client.post(
         "/api/skills",
@@ -106,10 +98,10 @@ def test_chat_ignores_unmatched_skills(client, monkeypatch):
 
     prompts: list[str] = []
 
-    def fake_generate(provider, key, model, prompt):
+    def fake_generate(user_id, prompt):
         prompts.append(prompt)
-        return ("Answer [1].", model)
+        return ("Answer [1].", "test-model")
 
-    monkeypatch.setattr(ai_api.providers, "generate", fake_generate)
+    client.app.state.ai_service = AIService(model="test-model", handler=fake_generate)
     assert client.post(f"/api/notebooks/{nb['id']}/chat", json={"message": "summarize this"}).status_code == 200
     assert "flashcards" not in prompts[0]

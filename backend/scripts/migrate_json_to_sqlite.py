@@ -118,17 +118,7 @@ def main() -> None:
 
     ai = _read_json(root / "settings.json", {}).get("ai", {})
     if isinstance(ai, dict) and ai.get("api_key"):
-        from core.models import AISettingsUpdate  # noqa: E402
-
-        store.save_ai_settings(
-            user.id,
-            AISettingsUpdate(
-                provider=ai.get("provider", "gemini"),
-                api_key=ai["api_key"],
-                model=ai.get("model", "gemini-3.5-flash-lite"),
-            ),
-        )
-        print("imported AI settings (re-enter the key if it fails; it was stored as-is)")
+        print("skip legacy AI key section (BYOK removed; keys are never imported)")
 
     print(f"done: {len(nb_map)} notebooks imported for {user.email}")
 

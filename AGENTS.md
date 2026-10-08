@@ -46,7 +46,7 @@ Non-negotiables:
 
 - **Hosted multi-user direction** — the product is one hosted backend
   (`research-server`) with thin clients. Every notebook, source, outline,
-  card, skill, note, and AI key belongs to exactly one user; routes enforce
+  card, skill, and note belongs to exactly one user; routes enforce
   ownership and cross-user access is always 404. (Supersedes the old
   keyless/no-account rule by owner decision, 2026-09-09.)
 - **$0 to run, $99 later** — self-hosting stays free (SQLite file, no paid
@@ -54,7 +54,7 @@ Non-negotiables:
   Store submission approaches.
 - **No local LLMs** — Ollama etc. intentionally excluded by owner decision.
 - **No-AI mode is first-class** — every feature must remain useful when no
-  provider key is configured. Auth is required; AI is not.
+  AI service is available. Auth is required; AI is not.
 - **License: MIT** — keep it open source (matches fordaaaa/panoply).
 - **Private hosted boundary** — the private `fordaaaa/research-server` owns
   hosted operations (cloud accounts, managed storage/sync,
@@ -100,7 +100,7 @@ backend/
 │   ├── sources.py      # upload / paste / url / list / get / chunks / patch / delete
 │   ├── search.py       # GET /notebooks/{id}/search (filters in query params)
 │   ├── web.py          # GET /web/search (keyless public discovery)
-│   ├── ai.py           # optional BYOK provider settings + chat; never required
+│   ├── ai.py           # optional managed AI status + chat; never required
 │   ├── study.py        # flashcards, study guide, mind map (+ exports)
 │   ├── outlines.py     # deep-research outlines (draft/deep/report)
 │   └── ...             # research, skills, humanize, demo (see HANDOFF.md)
@@ -140,9 +140,11 @@ The default and primary flow is: find public sources → import them locally →
 search/read/export them locally. `api/web.py` provides public discovery with
 no provider key. Do not introduce a provider, model, or key requirement to
 unlock that flow. Accounts stay required on data routes (owner decision,
-2026-09-09); AI keys stay optional and per-user. The existing BYOK adapters
-(Gemini, OpenRouter) are not a dependency to build upon unless the owner
-explicitly changes this direction.
+2026-09-09). Owner update, 2026-10-08: personal AI keys, provider selectors
+and provider adapters are removed. One operator-managed AI service may be
+injected per app; the local default is disabled. Hosted model selection,
+credentials and allowances stay in the private server. Do not restore personal
+key configuration or make study depend on AI.
 
 ### Route registration
 

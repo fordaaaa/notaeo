@@ -44,7 +44,8 @@ heuristics; general paraphrases and unsupported synonyms can still be missed.
 
 ## Optional AI and motion
 
-Configure an optional per-user Gemini, OpenRouter, or Groq key in Settings.
+Settings shows whether the operator-managed AI service is available. There
+is no personal key or provider configuration.
 **Use AI for practice** controls both generation and explanations. Requests
 use the shared thinking animation while the real provider call is pending.
 Settings → Motion → Try motion offers sample states without a provider call.
@@ -58,7 +59,7 @@ AI explanation's interpretation is correct. No live provider inference was
 used to verify this batch. Students still compare explanations with sources.
 
 Basic practice, saved cards, and the entire goal/attempt loop work without an
-AI key. There is no bundled provider credential, unlimited AI promise, local
+AI service. There is no bundled provider credential, unlimited AI promise, local
 LLM, or hosted allowance in this repository.
 
 ## Storage and API

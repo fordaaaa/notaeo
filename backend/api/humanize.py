@@ -1,12 +1,13 @@
 """Keyless humanizer: flag AI-sounding patterns for free, rewrite with AI only
-when the user configured a provider key. Analysis never needs a key."""
+when the per-app AI service is enabled. Analysis never needs AI."""
 from __future__ import annotations
 
 from fastapi import Depends, FastAPI, HTTPException
 from pydantic import BaseModel, Field, field_validator
 
-from api.deps import get_current_user, get_store
-from core import api as providers, humanize
+from api.deps import get_ai_service, get_current_user, get_store
+from core import humanize
+from core.api import AIError
 from core.models import (
     HumanizeAnalyzeRequest,
     HumanizeAnalyzeResponse,
@@ -54,21 +55,17 @@ def register(app: FastAPI) -> None:
 
     @app.post("/api/humanize/rewrite", response_model=HumanizeRewriteResponse)
     def rewrite(body: HumanizeRewriteRequest, user: User = Depends(get_current_user)):
-        store = get_store(app)
-        key = store.ai_key(user.id)
-        configured = store.get_ai_settings(user.id)
-        if not key or not configured.model:
+        service = get_ai_service(app)
+        if not service.enabled:
             raise HTTPException(
                 status_code=503,
-                detail="add an AI provider key in Settings to rewrite with AI",
+                detail="AI is unavailable right now. Try again later.",
             )
         try:
-            answer, used_model = providers.generate(
-                configured.provider,
-                key,
-                configured.model,
+            answer, used_model = service.generate(
+                user.id,
                 humanize.build_rewrite_prompt(body.text, body.voice_sample),
             )
-        except providers.AIError as exc:
+        except AIError as exc:
             raise HTTPException(status_code=502, detail=str(exc)) from exc
         return HumanizeRewriteResponse(text=answer, model=used_model)

@@ -39,7 +39,10 @@ def client(data_dir: Path, monkeypatch: pytest.MonkeyPatch):
     from fastapi.testclient import TestClient
 
     from api.main import app
+    from core.api import AIService
 
+    # Reset per-app AI service: disabled by default so tests opt in explicitly.
+    app.state.ai_service = AIService()
     with TestClient(app) as anon:
         response = anon.post(
             "/api/auth/register",

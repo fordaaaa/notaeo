@@ -1,15 +1,16 @@
 """Persistent deep-research outlines: draft items/fields, per-item deep pass,
 and an outline-structured report. Keyless by default; AI upgrades drafting and
-reporting when a provider key is configured but never blocks the keyless path."""
+reporting when the per-app service is enabled but never blocks the keyless path."""
 from __future__ import annotations
 
 from time import sleep
 
 from fastapi import Depends, FastAPI, HTTPException
 
-from api.deps import get_current_user, get_store, notebook_or_404, safe_id
+from api.deps import get_ai_service, get_current_user, get_store, notebook_or_404, safe_id
 from api.sources import _summary
-from core import api as providers, deepresearch, ingest, research, skills
+from core import deepresearch, ingest, research, skills
+from core.api import AIError
 from core.context import build_context
 from core.models import (
     OutlineCreate,
@@ -114,16 +115,15 @@ def register(app: FastAPI) -> None:
         notebook_or_404(store, user.id, notebook_id)
         origin = "heuristic"
         items, fields = deepresearch.draft_heuristic(body.topic)
-        key = store.ai_key(user.id)
-        configured = store.get_ai_settings(user.id)
-        if key and configured.model:
+        service = get_ai_service(app)
+        if service.enabled:
             try:
-                answer, _ = providers.generate(
-                    configured.provider, key, configured.model,
+                answer, _ = service.generate(
+                    user.id,
                     deepresearch.build_draft_prompt(body.topic),
                 )
                 ai_items, ai_fields = deepresearch.parse_draft(answer)
-            except providers.AIError:
+            except AIError:
                 ai_items, ai_fields = [], []
             if len(ai_items) >= 2:
                 items, origin = ai_items, "ai"
@@ -203,9 +203,8 @@ def register(app: FastAPI) -> None:
 
         origin, model = "digest", None
         text = deepresearch.build_report_digest(outline.topic, outline.items, outline.fields, sources)
-        key = store.ai_key(user.id)
-        configured = store.get_ai_settings(user.id)
-        if key and configured.model:
+        service = get_ai_service(app)
+        if service.enabled:
             try:
                 excerpts, citations = build_context(
                     store, notebook_id,
@@ -218,8 +217,8 @@ def register(app: FastAPI) -> None:
                 notes = store.get_memory(notebook_id)
                 if notes.strip():
                     prompt += "\n\n" + skills.memory_section(notes.strip())
-                answer, model = providers.generate(
-                    configured.provider, key, configured.model, prompt,
+                answer, model = service.generate(
+                    user.id, prompt,
                 )
                 lines = [answer, "", "Sources:"]
                 lines.extend(
@@ -227,7 +226,7 @@ def register(app: FastAPI) -> None:
                     for number, citation in enumerate(citations, start=1)
                 )
                 text, origin = "\n".join(lines), "ai"
-            except providers.AIError:
+            except AIError:
                 origin, model = "digest", None
 
         extra_meta: dict = {

@@ -53,33 +53,31 @@ def test_rewrite_requires_ai_key(client):
     assert response.status_code == 503
 
 
-def test_rewrite_uses_provider_when_configured(client, monkeypatch):
-    client.put(
-        "/api/settings/ai",
-        json={"provider": "gemini", "api_key": "a-key-that-is-long-enough", "model": "gemini-test"},
+def _enable_ai(client):
+    from core.api import AIService
+
+    client.app.state.ai_service = AIService(
+        model="notaeo-test",
+        handler=lambda user_id, prompt: ("We looked at the river.", "notaeo-test"),
     )
-    monkeypatch.setattr(
-        humanize_api.providers,
-        "generate",
-        lambda provider, key, model, prompt: ("We looked at the river.", model),
-    )
+
+
+def test_rewrite_uses_provider_when_configured(client):
+    _enable_ai(client)
     response = client.post("/api/humanize/rewrite", json={"text": "Let's dive into rivers."})
     assert response.status_code == 200
     body = response.json()
     assert body["text"] == "We looked at the river."
-    assert body["model"] == "gemini-test"
+    assert body["model"] == "notaeo-test"
 
 
-def test_rewrite_falls_back_to_502_on_ai_error(client, monkeypatch):
-    client.put(
-        "/api/settings/ai",
-        json={"provider": "gemini", "api_key": "a-key-that-is-long-enough", "model": "gemini-test"},
-    )
+def test_rewrite_falls_back_to_502_on_ai_error(client):
+    from core.api import AIError, AIService
 
-    def boom(provider, key, model, prompt):
-        raise humanize_api.providers.AIError("rate-limited")
+    def boom(user_id, prompt):
+        raise AIError("rate-limited")
 
-    monkeypatch.setattr(humanize_api.providers, "generate", boom)
+    client.app.state.ai_service = AIService(model="notaeo-test", handler=boom)
     response = client.post("/api/humanize/rewrite", json={"text": "Let's dive in."})
     assert response.status_code == 502
 

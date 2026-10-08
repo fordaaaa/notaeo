@@ -792,25 +792,12 @@ public sealed class NotaeoApi
         return Decode<CoachExplanation>(body);
     }
 
-    // ---------- AI settings ----------
+    // ---------- AI availability (read-only operator status) ----------
 
-    public async Task<AISettings> GetAISettingsAsync(CancellationToken ct = default)
+    public async Task<AIStatus> GetAIStatusAsync(CancellationToken ct = default)
     {
-        var (body, _, _) = await SendRawAsync("api/settings/ai", HttpMethod.Get, ct: ct).ConfigureAwait(false);
-        return Decode<AISettings>(body);
-    }
-
-    public async Task<AISettings> SaveAISettingsAsync(string provider, string apiKey, string model, CancellationToken ct = default)
-    {
-        var (body, _, _) = await SendRawAsync(
-            "api/settings/ai", HttpMethod.Put,
-            content: JsonBody(new { provider, api_key = apiKey, model }), ct: ct).ConfigureAwait(false);
-        return Decode<AISettings>(body);
-    }
-
-    public async Task ClearAISettingsAsync(CancellationToken ct = default)
-    {
-        await SendRawAsync("api/settings/ai", HttpMethod.Delete, ct: ct).ConfigureAwait(false);
+        var (body, _, _) = await SendRawAsync("api/ai/status", HttpMethod.Get, ct: ct).ConfigureAwait(false);
+        return Decode<AIStatus>(body);
     }
 
     // ---------- study workspace (search + mind map) ----------

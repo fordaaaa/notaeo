@@ -199,36 +199,6 @@ class WebSearchResult(BaseModel):
     snippet: str
 
 
-AIProvider = Literal["gemini", "openrouter", "groq"]
-
-AI_DEFAULT_MODELS: dict[str, str] = {
-    "gemini": "gemini-3.5-flash-lite",
-    "openrouter": "nvidia/nemotron-3-ultra-550b-a55b:free",
-    "groq": "openai/gpt-oss-20b",
-}
-
-
-class AISettingsUpdate(BaseModel):
-    provider: AIProvider = "gemini"
-    api_key: str = Field(min_length=10, max_length=500)
-    model: str = Field(default="gemini-3.5-flash-lite", min_length=1, max_length=100)
-
-    @model_validator(mode="before")
-    @classmethod
-    def _default_model(cls, data: Any) -> Any:
-        if isinstance(data, dict) and not data.get("model"):
-            provider = data.get("provider", "gemini")
-            if provider in AI_DEFAULT_MODELS:
-                data = {**data, "model": AI_DEFAULT_MODELS[provider]}
-        return data
-
-
-class AISettings(BaseModel):
-    configured: bool
-    provider: AIProvider | None = None
-    model: str | None = None
-
-
 class ChatRequest(BaseModel):
     message: str = Field(min_length=1, max_length=4_000)
 
