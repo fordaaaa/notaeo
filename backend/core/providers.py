@@ -30,7 +30,9 @@ class AIError(Exception):
 
 def generate(provider: str, api_key: str, model: str, prompt: str) -> tuple[str, str]:
     """Return (answer, model_that_answered); falls back to backup free models."""
-    adapter = _ADAPTERS[provider]
+    adapter = _ADAPTERS.get(provider)
+    if adapter is None:
+        raise AIError("AI provider is not supported. Check your AI settings.")
     chain = _model_chain(provider, model)
     last_exc: Exception | None = None
     for index, candidate in enumerate(chain):

@@ -627,6 +627,7 @@ class CoachSession(BaseModel):
     goal: ExamGoal
     status: Literal["draft", "active", "completed"] = "draft"
     generated_by: Literal["basic", "ai"] = "basic"
+    model: str | None = None
     notice: str | None = None
     tasks: list[CoachTask]
     attempts: list[CoachAttempt] = Field(default_factory=list)
