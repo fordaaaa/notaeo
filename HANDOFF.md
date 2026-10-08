@@ -5,7 +5,35 @@ are the priority. The website, browser frontend and static serving were
 removed from both public and hosted repositories on 2026-10-07. Mobile lives
 in `research-mobile`; its bounded Settings/coach pass is active.
 
-## Current change: personal AI keys removed
+## Current change: backend authentication and security audit
+
+Account login uses backend email lookup and salted PBKDF2 verification; session
+bearers are hashed in SQLite and account routes enforce ownership. Hardened
+stored-hash parsing/cost bounds, added KDF work for missing/unusable hashes,
+normalized logout revocation and added no-store headers, including errors.
+Google login now refuses email-only linking/replacement with 409; explicit
+account linking remains future work. No existing identities were migrated.
+
+Mobile validates backend auth responses, rejects duplicate-registration 200
+without token/user, protects replacement sessions from stale 401/logout and
+serializes SecureStore writes. Bootstrap verifies saved tokens with /auth/me;
+transport failures preserve them while showing guest mode. Auth screen requests
+abort on disposal. No local fake account or password persistence was added.
+
+OpenCode bounded workers and independent final backend/mobile reviewers
+approved the code. Public backend: 477 tests. Private backend: 407 tests.
+Mobile: 144 unit tests, clean type checking, 20 browser-profile E2E checks.
+macOS arm64 sidecar/app build and signature verification passed.
+The [audit report](docs/SECURITY_AUDIT_2026-10-08.md) records fixed findings and
+limits; this is not a live penetration test or deployment certification.
+
+Manual mobile testing remains available in Expo Go 57 on the iPhone 17 Pro
+simulator, Metro on localhost:8082 and a synthetic local backend on :8002.
+Compiled Expo 57 iOS builds require Xcode 26.4+; installed 26.3 cannot build
+that target. This does not block the SwiftUI macOS packaging workflow.
+No server deployment, push, personal keys or provider changes in this pass.
+
+## Previous change: personal AI keys removed
 
 Owner decision, 2026-10-08: Notaeo should help students study independently.
 One optional operator-managed AI service can add explanations or practice.

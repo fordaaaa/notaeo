@@ -26,7 +26,7 @@ from core.models import (
     User,
     UserPublic,
 )
-from core.store import verify_password
+from core.store import DUMMY_PASSWORD_HASH, verify_password
 
 _EMAIL = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 
@@ -385,7 +385,12 @@ def register(app: FastAPI) -> None:
         _check_email_rate_limit(email_key)
         key = _rate_limit_key(request, body.email)
         found = store.get_user_by_email(body.email)
-        if found is not None and verify_password(body.password, found[1]):
+        # Missing or unusable hashes still run a standard KDF to reduce the
+        # timing shortcut for unknown emails. This is not a guarantee that
+        # whole requests take equal time. Unknown users always fail.
+        stored = found[1] if found is not None else DUMMY_PASSWORD_HASH
+        ok = verify_password(body.password, stored)
+        if found is not None and ok:
             _FAILED_LOGINS.pop(key, None)
             _FAILED_LOGINS_BY_EMAIL.pop(email_key, None)
             token, _ = store.create_session(found[0].id)
@@ -396,7 +401,8 @@ def register(app: FastAPI) -> None:
 
     @app.post("/api/auth/logout", status_code=204)
     def logout(request: Request, user: User = Depends(get_current_user)):
-        get_store(app).delete_session(request.headers.get("authorization", "")[7:])
+        auth = request.headers.get("authorization", "")
+        get_store(app).delete_session(auth[7:].strip())
 
     @app.get("/api/auth/me", response_model=UserPublic)
     def me(user: User = Depends(get_current_user)):
@@ -425,28 +431,18 @@ def register(app: FastAPI) -> None:
         store = get_store(app)
         user = store.get_user_by_google_sub(google_sub)
         if user is None:
-            existing = store.get_user_by_email(email)
-            if existing is not None:
-                user = existing[0]
-                try:
-                    store.set_user_google_sub(user.id, google_sub)
-                except ValueError as exc:
-                    raise HTTPException(
-                        status_code=409, detail="Google account already linked"
-                    ) from exc
-            else:
-                try:
-                    user = store.create_google_user(email, google_sub)
-                except ValueError:
-                    existing = store.get_user_by_email(email)
-                    if existing is None:
-                        raise
-                    user = existing[0]
-                    try:
-                        store.set_user_google_sub(user.id, google_sub)
-                    except ValueError as exc:
-                        raise HTTPException(
-                            status_code=409, detail="Google account already linked"
-                        ) from exc
+            # Email equality does not prove control of an existing account.
+            # Automatic linking lets an unverified password account created
+            # first retain access to a later Google user's data.
+            if store.get_user_by_email(email) is not None:
+                raise HTTPException(status_code=409, detail="Sign in to your existing account before linking Google.")
+            try:
+                user = store.create_google_user(email, google_sub)
+            except ValueError as exc:
+                # A simultaneous sign-in may have created this exact Google
+                # identity. Resolve by verified subject, never by email.
+                user = store.get_user_by_google_sub(google_sub)
+                if user is None:
+                    raise HTTPException(status_code=409, detail="Sign in to your existing account before linking Google.") from exc
         token, _ = store.create_session(user.id)
         return AuthResponse(user=_public(user), token=token)

@@ -61,7 +61,7 @@ def test_google_login_creates_user_and_reuses_sub(data_dir, monkeypatch):
         assert second.json()["user"]["id"] == user_id
 
 
-def test_google_login_links_existing_email_user(data_dir, monkeypatch):
+def test_google_login_does_not_link_an_existing_email_only_account(data_dir, monkeypatch):
     import api.auth as auth_module
 
     monkeypatch.setenv("RESEARCH_DATA_DIR", str(data_dir))
@@ -79,8 +79,30 @@ def test_google_login_links_existing_email_user(data_dir, monkeypatch):
             json={"email": "student@example.com", "password": "password123"},
         ).status_code == 201
         res = anon.post("/api/auth/google", json={"id_token": "valid-token"})
-        assert res.status_code == 200
-        assert res.json()["user"]["email"] == "student@example.com"
+        assert res.status_code == 409
+        assert "token" not in res.json()
+        assert "user" not in res.json()
+        assert app.state.store.get_user_by_google_sub("google-sub-9") is None
+        with app.state.store._connect() as con:
+            assert con.execute("SELECT COUNT(*) FROM sessions").fetchone()[0] == 1
+        login = anon.post("/api/auth/login", json={"email": "student@example.com", "password": "password123"})
+        assert login.status_code == 200
+
+
+def test_google_login_does_not_replace_an_existing_google_identity(data_dir, monkeypatch):
+    import api.auth as auth_module
+    from fastapi.testclient import TestClient
+    from api.main import app
+
+    monkeypatch.setenv("RESEARCH_DATA_DIR", str(data_dir))
+    monkeypatch.setenv("GOOGLE_CLIENT_ID", "test-client-id.apps.googleusercontent.com")
+    monkeypatch.setattr(auth_module, "_verify_google_token", lambda token: ("student@example.com", "google-sub-new"))
+    with TestClient(app) as anon:
+        user = app.state.store.create_google_user("student@example.com", "google-sub-original")
+        response = anon.post("/api/auth/google", json={"id_token": "valid-token"})
+        assert response.status_code == 409
+        assert app.state.store.get_user_by_google_sub("google-sub-original").id == user.id
+        assert app.state.store.get_user_by_google_sub("google-sub-new") is None
 
 
 def test_google_login_rejects_invalid_token(data_dir, monkeypatch):

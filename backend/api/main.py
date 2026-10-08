@@ -45,6 +45,7 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name
 
 DESKTOP_TOKEN_HEADER = "X-Notaeo-Desktop-Token"
 SECURITY_HEADERS = {
+    "Cache-Control": "no-store",
     "X-Content-Type-Options": "nosniff",
     "X-Frame-Options": "DENY",
     "Content-Security-Policy": (
@@ -108,7 +109,7 @@ def create_app() -> FastAPI:
     @app.exception_handler(Exception)
     async def _unhandled(request: Request, exc: Exception) -> JSONResponse:
         logger.exception("unhandled exception on %s %s", request.method, request.url.path)
-        return JSONResponse(status_code=500, content={"detail": "internal server error"})
+        return JSONResponse(status_code=500, content={"detail": "internal server error"}, headers=SECURITY_HEADERS)
 
     @app.get("/api/health")
     def health():
