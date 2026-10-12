@@ -1,11 +1,52 @@
 # HANDOFF.md
 
-Updated 2026-10-08. Branch `main`; installed native macOS and Windows apps
+Updated 2026-10-12. Branch `main`; installed native macOS and Windows apps
 are the priority. The website, browser frontend and static serving were
 removed from both public and hosted repositories on 2026-10-07. Mobile lives
 in `research-mobile`; its bounded Settings/coach pass is active.
 
-## Current change: backend authentication and security audit
+## Current change: development loop and proposed verification gate
+
+Owner requested the PRD → plan → explicit approval → one-phase TDD → fresh
+review → security audit → ordered verification → ship/handoff loop, with Brig
+for compact code context and OpenCode workers. The one-round interview was
+waived on 2026-10-12 because the owner has not tested enough to supply evidence;
+missing product evidence stays an assumption/TBD. Do not ask it again.
+
+SPEC.md and PLAN.md propose a public-backend production verification gate,
+with separate native desktop evidence. docs/DEVELOPMENT_LOOP.md records the
+reusable process. **Implementation is not approved.** Next owner action is
+`yes` or `modify: ...` on the concrete plan; Phase 1 is the next proposed scope.
+No app code, dependency/config changes, new tests, build, deployment or full
+verification gate were run in this docs-only pass. Historical checks below
+are 2026-10-08 evidence, not a new production-readiness claim.
+
+Brig full `research` index failed with `UNIQUE constraint failed: symbols.path,
+symbols.qualname, symbols.kind`. Backend-only indexing succeeded (slug
+`research-backend`), and root retrieved fresh auth/runtime outlines with
+explicit `slug`. An OpenCode worker could not see that slug in its own index;
+supply compact root evidence when needed. Brig indexes code; the durable
+scope/approval/phase/evidence record is SPEC.md/PLAN.md/HANDOFF.md, not a claimed
+Brig conversation-memory capability. OpenCode bridge tools and CLI model check
+passed; planning agent used muse-spark-1.3-contributor-free at xhigh. Independent
+planning review: APPROVE with zero findings. Docs-only validation passed
+`git diff --check` and consistency checks; no application gate was run.
+
+Next three actions: (1) obtain explicit plan approval and confirm scope/coverage
+and unknown-evidence conventions; (2) run only approved Phase 1 with RED-first
+policy tests and actual baseline evidence, reporting blockers before fixes;
+(3) review the phase independently, audit it, then verify/report and save its
+lesson before any next phase or release. No baseline type/lint/coverage result
+has been measured yet. No application release is authorized by these docs.
+
+Resume: read SPEC.md, PLAN.md and docs/DEVELOPMENT_LOOP.md first. Existing setup
+is `cd backend && uv sync`; existing test command is `uv run pytest`. Actual
+baseline commands are in PLAN.md's Validation section and must not be reported
+as passing until run in order. Proposed verifier/check tools are not installed
+or implemented. Follow the OpenCode startup gate and reviewer-approval policy
+before code/commits, and retain no-AI/account/secret boundaries.
+
+## Previous change: backend authentication and security audit
 
 Account login uses backend email lookup and salted PBKDF2 verification; session
 bearers are hashed in SQLite and account routes enforce ownership. Hardened
