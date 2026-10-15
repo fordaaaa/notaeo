@@ -1,6 +1,10 @@
 from __future__ import annotations
 
+import pytest
+from fastapi.testclient import TestClient
+
 from api import outlines as outlines_api
+from api.main import app
 from core.api import AIService
 from core.models import WebSearchResult
 from core.websearch import WebSearchError
@@ -11,7 +15,7 @@ def _nb(client):
 
 
 def _outline(client, nb_id, topic="crabs", items=None, fields=None):
-    body = {"topic": topic}
+    body: dict[str, object] = {"topic": topic}
     if items is not None:
         body["items"] = [{"label": label} for label in items]
     if fields is not None:
@@ -145,3 +149,72 @@ def test_report_requires_sources(client):
     outline = _outline(client, nb["id"], items=["Blue crab"])
     response = client.post(f"/api/notebooks/{nb['id']}/outlines/{outline['id']}/report", json={})
     assert response.status_code == 400
+
+
+def test_outline_update_preserves_supplied_ids_and_allows_empty_patch(client: TestClient) -> None:
+    nb = _nb(client)
+    outline = _outline(client, nb["id"], items=["Blue crab"], fields=["Habitat"])
+    path = f"/api/notebooks/{nb['id']}/outlines/{outline['id']}"
+    response = client.patch(path, json={"items": outline["items"], "fields": outline["fields"]})
+    assert response.status_code == 200
+    assert response.json()["items"] == outline["items"]
+    assert response.json()["fields"] == outline["fields"]
+    assert client.patch(path, json={}).json()["topic"] == "crabs"
+    assert client.delete(path).status_code == 204
+    assert client.delete(path).status_code == 404
+
+
+@pytest.mark.parametrize("answer", [None, "ITEMS:\nBlue crab\nKing crab\nFIELDS:\nHabitat"])
+def test_outline_draft_keeps_heuristic_fields_when_ai_unavailable_or_incomplete(
+    client: TestClient, answer: str | None,
+) -> None:
+    nb = _nb(client)
+
+    def generate(user_id: str, prompt: str) -> tuple[str, str]:
+        if answer is None:
+            raise RuntimeError("synthetic upstream outage")
+        return answer, "test-model"
+
+    app.state.ai_service = AIService(model="test-model", handler=generate)
+    response = client.post(f"/api/notebooks/{nb['id']}/outlines/draft", json={"topic": "crabs"})
+    assert response.status_code == 200
+    assert response.json()["origin"] == ("heuristic" if answer is None else "ai")
+    assert "Overview" in response.json()["fields"]
+
+
+@pytest.mark.parametrize("upstream_fails", [False, True])
+def test_outline_report_selected_sources_and_ai_fallback(
+    client: TestClient, upstream_fails: bool,
+) -> None:
+    nb = _nb(client)
+    outline = _outline(client, nb["id"], items=["Blue crab"])
+    first = client.post(f"/api/notebooks/{nb['id']}/sources/text", json={
+        "title": "Selected", "text": "Blue crabs live in estuaries.",
+    }).json()
+    client.post(f"/api/notebooks/{nb['id']}/sources/text", json={
+        "title": "Excluded", "text": "Do not include this unrelated source.",
+    })
+    prompts: list[str] = []
+
+    def generate(user_id: str, prompt: str) -> tuple[str, str]:
+        prompts.append(prompt)
+        if upstream_fails:
+            raise RuntimeError("synthetic upstream outage")
+        return "Blue crabs live in estuaries [1].", "test-model"
+
+    app.state.ai_service = AIService(model="test-model", handler=generate)
+    path = f"/api/notebooks/{nb['id']}/outlines/{outline['id']}/report"
+    assert client.post(path, json={"source_ids": ["aaaaaaaaaaaa"]}).status_code == 400
+    response = client.post(path, json={"source_ids": [first["id"]]})
+    assert response.status_code == 201
+    body = response.json()
+    assert body["origin"] == ("digest" if upstream_fails else "ai")
+    assert body["model"] == (None if upstream_fails else "test-model")
+    assert body["source"]["meta"]["outline_id"] == outline["id"]
+    assert len(prompts) == 1
+    assert "Blue crabs live" in prompts[0]
+    assert "Do not include" not in prompts[0]
+    stored = client.get(f"/api/sources/{body['source']['id']}").json()
+    text = "\n".join(chunk["text"] for chunk in stored["chunks"])
+    assert "Blue crabs" in text
+    assert "Do not include" not in text

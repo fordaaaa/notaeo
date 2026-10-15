@@ -59,8 +59,9 @@ def _parse_pdf(data: bytes) -> list[Page]:
         logger.warning("invalid pdf upload (%d bytes): %s", len(data), exc)
         raise ValueError("invalid pdf") from exc
     pages = []
-    for i, page in enumerate(doc):
-        pages.append(Page(number=i + 1, text=page.get_text("text").strip()))
+    for i in range(len(doc)):
+        page = doc[i]
+        pages.append(Page(number=i + 1, text=page.get_textpage(flags=pymupdf.TEXTFLAGS_TEXT).extractText().strip()))
     doc.close()
     return pages
 

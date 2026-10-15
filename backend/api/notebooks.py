@@ -19,7 +19,9 @@ from core.models import NotebookCreate, User
 def register(app: FastAPI) -> None:
     @app.post("/api/notebooks", status_code=201)
     def create_notebook(body: NotebookCreate, user: User = Depends(get_current_user)):
-        return get_store(app).create_notebook(user.id, body.name)
+        name = body.name
+        assert name is not None  # NotebookCreate resolves name/title during validation.
+        return get_store(app).create_notebook(user.id, name)
 
     @app.get("/api/notebooks")
     def list_notebooks(user: User = Depends(get_current_user)):

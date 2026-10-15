@@ -9,7 +9,7 @@ import ipaddress
 import re
 import time
 from collections import Counter
-from urllib.parse import parse_qsl, urlencode, urlsplit, unquote, urlunsplit
+from urllib.parse import parse_qsl, urlencode, urlsplit, unquote
 
 from ddgs import DDGS
 

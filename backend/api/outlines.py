@@ -26,6 +26,7 @@ from core.models import (
     OutlineUpdate,
     ResearchCandidate,
     ResearchOutline,
+    SourceSummary,
     User,
     utcnow,
 )
@@ -239,4 +240,4 @@ def register(app: FastAPI) -> None:
         source = ingest.ingest_text(
             store, notebook_id, f"Research report: {outline.topic}", text, extra_meta=extra_meta
         )
-        return OutlineReportResponse(source=_summary(source), origin=origin, model=model)
+        return OutlineReportResponse(source=SourceSummary.model_validate(_summary(source)), origin=origin, model=model)

@@ -165,6 +165,8 @@ def parse_due(coursework: dict) -> datetime | None:
 
 def token_expiry(payload: dict, fallback: datetime) -> datetime:
     seconds = payload.get("expires_in")
+    if seconds is None:
+        return fallback
     try:
         return fallback + timedelta(seconds=int(seconds))
     except (TypeError, ValueError):

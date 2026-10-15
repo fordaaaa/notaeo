@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import pytest
+
 from core.article import ArticleParagraph, extract_article
 
 
@@ -65,3 +67,9 @@ def test_void_elements_inside_boilerplate_do_not_swallow_content():
         "Real content here.",
         "Kept paragraph.",
     ]
+
+
+@pytest.mark.parametrize("prefix", ["</h1>", "</h2></h3></h4>", "<h2>Topic</h2></h2>", "<h1></h1></h1>"])
+def test_unmatched_heading_ends_preserve_following_paragraph(prefix: str) -> None:
+    article = extract_article(prefix + "<p>Résumé: μ cells remain readable.</p>")
+    assert [item.text for item in article.paragraphs] == ["Résumé: μ cells remain readable."]

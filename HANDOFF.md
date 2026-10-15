@@ -1,50 +1,136 @@
 # HANDOFF.md
 
-Updated 2026-10-12. Branch `main`; installed native macOS and Windows apps
+Updated 2026-10-15. Branch `main`; installed native macOS and Windows apps
 are the priority. The website, browser frontend and static serving were
 removed from both public and hosted repositories on 2026-10-07. Mobile lives
 in `research-mobile`; its bounded Settings/coach pass is active.
 
-## Current change: development loop and proposed verification gate
+## Current work: Phase 1b remediation — complete, local gate green
 
-Owner requested the PRD → plan → explicit approval → one-phase TDD → fresh
-review → security audit → ordered verification → ship/handoff loop, with Brig
-for compact code context and OpenCode workers. The one-round interview was
-waived on 2026-10-12 because the owner has not tested enough to supply evidence;
-missing product evidence stays an assumption/TBD. Do not ask it again.
+Owner asked to continue development with fresh subagent perspectives on
+2026-10-15. Two independent read-only OpenCode agents reassessed the baseline.
+They agree not to build the Phase 2 verifier while app gates fail, and that
+22 type errors do not mean 22 runtime bugs. Coordinator reproduced a real
+`TypeError` importing synthetic `</h2><p>Notes</p>` at core/article.py:131;
+an owned source disappearing between lookup/update also lacked a 404 guard.
+The remaining diagnostics are mostly safe existing invariants/annotations.
 
-SPEC.md and PLAN.md propose a public-backend production verification gate,
-with separate native desktop evidence. docs/DEVELOPMENT_LOOP.md records the
-reusable process. **Implementation is not approved.** Next owner action is
-`yes` or `modify: ...` on the concrete plan; Phase 1 is the next proposed scope.
-No app code, dependency/config changes, new tests, build, deployment or full
-verification gate were run in this docs-only pass. Historical checks below
-are 2026-10-08 evidence, not a new production-readiness claim.
+Owner explicitly answered `Yes—implement Phase 1b` on 2026-10-15 after the
+plan review approved it with zero findings. Implemented only Phase 1b plus the
+preserved Phase 1 configuration/tests: resilient malformed headings, missing
+source-update 404, safe narrowing/annotations/import cleanup, urllib3 patch and
+meaningful behavior tests. Real behavior RED was 5 failed/19 passed, then 24
+passed; static RED was 22 types/3 lint. The dependency regression showed 1
+failed/20 passed, then 21 passed with urllib3 2.8.0. No other previously locked
+package version changed, no new suppression/Any or coverage omission was added.
 
-Brig full `research` index failed with `UNIQUE constraint failed: symbols.path,
-symbols.qualname, symbols.kind`. Backend-only indexing succeeded (slug
-`research-backend`), and root retrieved fresh auth/runtime outlines with
-explicit `slug`. An OpenCode worker could not see that slug in its own index;
-supply compact root evidence when needed. Brig indexes code; the durable
-scope/approval/phase/evidence record is SPEC.md/PLAN.md/HANDOFF.md, not a claimed
-Brig conversation-memory capability. OpenCode bridge tools and CLI model check
-passed; planning agent used muse-spark-1.3-contributor-free at xhigh. Independent
-planning review: APPROVE with zero findings. Docs-only validation passed
-`git diff --check` and consistency checks; no application gate was run.
+Final measured gate: complete macOS app/sidecar Release build, ad-hoc signature
+and arm64 checks PASS; Pyright 59 files / 0 errors or warnings; Ruff 0; 582 tests
+pass with 7 existing dependency deprecations. Full api/core coverage is 5560/6091
+lines (91.28%), 1482/1834 branches (80.81%), combined 88.86%. Each of 12 touched
+production files exceeds 80% lines AND branches. New config scaffold alone is
+97.56% lines/80.77% branches. Fresh pip-audit checks 85 installed packages with
+0 vulnerabilities; contextual source scan has 0 candidates in 51 tracked
+backend code files. Three fresh OpenCode review slices approve with zero
+findings, including separate security review. Exact commands, changed-file
+list, review sessions and limitations: docs/VERIFICATION_BASELINE.md's
+2026-10-15 section. Logs `/tmp/notaeo-phase1b-*` and ignored
+`backend/build/verification/phase1b-*` contain detailed local evidence.
 
-Next three actions: (1) obtain explicit plan approval and confirm scope/coverage
-and unknown-evidence conventions; (2) run only approved Phase 1 with RED-first
-policy tests and actual baseline evidence, reporting blockers before fixes;
-(3) review the phase independently, audit it, then verify/report and save its
-lesson before any next phase or release. No baseline type/lint/coverage result
-has been measured yet. No application release is authorized by these docs.
+The three broad OpenCode implementation jobs timed out at 600 seconds without
+source edits. CLI recheck succeeded; coordinator implemented and integrated,
+using smaller OpenCode test-generation and independent review packets. No
+native subagent substitution. `.serena/project.yml` was modified on arrival and
+is preserved outside our commits. Only the public research repo changed; no
+push, deployment, schema/data migration or native/private/mobile source change.
 
-Resume: read SPEC.md, PLAN.md and docs/DEVELOPMENT_LOOP.md first. Existing setup
-is `cd backend && uv sync`; existing test command is `uv run pytest`. Actual
-baseline commands are in PLAN.md's Validation section and must not be reported
-as passing until run in order. Proposed verifier/check tools are not installed
-or implemented. Follow the OpenCode startup gate and reviewer-approval policy
-before code/commits, and retain no-AI/account/secret boundaries.
+Next three steps: (1) owner manually tests the rebuilt
+`macos/build/Build/Products/Release/Notaeo.app`; (2) choose the next priority and
+explicitly approve PLAN.md Phase 2 if the automated verifier is desired;
+(3) implement only that approved phase with RED/GREEN, independent OpenCode
+review and the full gate. Phase 2/3 remain unapproved and unimplemented. Local
+patch readiness is separate from application release: native critical-flow E2E,
+Windows runtime/packaging, notarization and hosted operations/monitoring are
+still unvalidated; application release remains NO-GO.
+
+Resume from root with `git status --short`, then read SPEC.md, PLAN.md Phase 1b
+completion and the latest baseline section. Startup gate still requires the
+three bridge tools and `list_opencode_models(freeOnly=true)`. From backend,
+`uv sync --locked`, `uv run pytest`, `uv run pyright`, and
+`uv run ruff check core api scripts tests/platform/test_verification_configuration.py`.
+Run the expanded changed-test checks in the baseline when editing those tests.
+From root, `sh scripts/build_macos_app.sh` rebuilds the native app. Never use
+system python3 or real student data for test fixtures.
+
+Accepted fresh perspective: app fixes and useful tests before more automation;
+reject using extra Any/casts or static source bans just to satisfy checks.
+Root Brig `research-backend` index refreshed; `build_session` source lookup was
+fresh; the `research-verification-tests` index also refreshed after test edits.
+Full-repo duplicate-symbol limitation and worker namespace caveat below
+still apply. Old coverage/audit results below are dated 2026-10-12, not a new
+verification run. Read SPEC.md/PLAN.md Phase 1b before resuming.
+
+## Previous phase: Phase 1 verification baseline — NOT READY, uncommitted
+
+Owner approved PLAN.md Phase 1 with `yes` on 2026-10-12, after waiving the
+one-round interview due to limited testing. Implemented only verification
+configuration/tests: dev-only Ruff/Pyright/coverage/pip-audit, declared scope,
+separate 80% line/branch floors and ignored coverage output. No API/core/native,
+hosted/mobile source or runtime dependency version changed. Phase 2 runner is
+absent and not authorized. SPEC/PLAN/DEVELOPMENT_LOOP persist the scope/approval
+process; read docs/VERIFICATION_BASELINE.md before any continuation.
+
+Actual RED: 14 failed / 3 passed before config; coordinator policy regressions
+4 failed / 16 passed; GREEN 20 passed. Full backend suite: 497 passed, 7 existing
+deprecation warnings. New test/scaffold coverage: 97.50% lines, 80.77% branches.
+The actual gate is red: sidecar build PASS, Pyright 22 existing app errors,
+Ruff 3 existing unused imports, full api/core line coverage 89.42%, branch
+coverage 77.33% (FAIL; combined 86.62% PASS alone is insufficient), pip-audit
+3 advisories in preexisting urllib3 2.7.0. No new test type/lint diagnostics.
+Independent OpenCode code review APPROVE, zero new-scope security issues;
+dependency findings separately HIGH 1 / MEDIUM 2, applicability conditional.
+Tracked-source scan found no exposed secret requiring rotation; private/live
+secrets and deployment remain outside the audit. No app release is READY.
+
+**Historical state on 2026-10-12, superseded by Phase 1b above:** changes could
+not be committed while required gates were red. They were staged/unstaged in
+the correct public `research` repo, not pushed or deployed. No test was deleted/skipped/disabled, no application diagnostic
+suppressed, no coverage scope narrowed. Seven intended changed files: SPEC.md,
+PLAN.md, HANDOFF.md, docs/VERIFICATION_BASELINE.md, backend/pyproject.toml,
+backend/uv.lock and backend/tests/platform/test_verification_configuration.py.
+Generated reports are ignored under backend/build/verification; temporary
+logs /tmp/notaeo-phase1-* hold RED/GREEN/build/types/lint/test evidence. Do not
+claim an automated verifier exists or that prior 2026-10-08 checks ran today.
+
+The then-pending three actions were: (1) obtain approval for a specific remediation scope based
+on the 22 types, 3 lint, dependency advisories and missing branch coverage;
+(2) implement only approved fixes with RED-first behavior tests, independent
+review and security assessment; (3) rerun the complete ordered gate and commit
+only after green, then request the next named phase. These remediation actions
+are complete under the later explicit Phase 1b approval. Phase 2 still needs
+separate approval.
+The proposed patched urllib3 version is 2.8.0; that would be a runtime dependency
+change requiring new packaging and audit evidence, not a no-op tool update.
+
+Resume setup: `cd backend && uv sync`. Targeted policy test:
+`uv run pytest tests/platform/test_verification_configuration.py -q` (20 pass).
+From root, build `sh backend/scripts/build_macos_sidecar.sh`; only after PASS,
+from backend run `uv run pyright`, `uv run ruff check core api scripts
+tests/platform/test_verification_configuration.py`, `uv run coverage run
+--branch --source=core,api -m pytest`, JSON/report then `uv run pip-audit --local`.
+Exact commands/exits/denominators and all diagnostics are in the baseline doc.
+No real user DB or cloud secrets were accessed; no manual simulator server was
+restarted or user data changed in this phase.
+
+Brig root index still has the documented duplicate-symbol failure; backend
+slug `research-backend` refreshed and root retrieved fresh API outlines. Worker
+lookup may use a different index namespace; provide compact verified root
+context. Root also saved fresh configuration-test outlines under Brig slug
+`research-verification-tests`. Final review supplement approved the phase
+artifacts with zero new findings while blocking release. OpenCode startup
+gate passed, worker/reviews used
+muse-spark-1.3-contributor-free at xhigh. Future context retrieval supplements,
+not replaces, these durable approval/phase/evidence documents.
 
 ## Previous change: backend authentication and security audit
 

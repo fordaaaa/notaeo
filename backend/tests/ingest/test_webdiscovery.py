@@ -1,6 +1,58 @@
 """Core webdiscovery tests (TDD)."""
 from __future__ import annotations
 
+import pytest
+
+from core import webdiscovery as wd
+
+
+@pytest.mark.parametrize("url", [
+    "ftp://example.edu/cells", "https://user:pass@example.edu/cells",
+    "https:///cells", "https://localhost/cells", "https://127.0.0.1/cells",
+    "https://[::1]/cells", "https://[broken/cells", "https://example.123/cells",
+    "https://example.edu:0/cells", "https://example.edu:65536/cells",
+    "https://example.edu:invalid/cells", "https://bad_host.edu/cells",
+    "https://" + "a" * 64 + ".edu/cells", "https://singlelabel/cells",
+])
+def test_discovery_discards_malformed_or_private_candidate_urls(
+    monkeypatch: pytest.MonkeyPatch, url: str,
+) -> None:
+    class FakeDDGS:
+        def __init__(self, timeout: int) -> None:
+            pass
+
+        def text(self, *args: object, **kwargs: object) -> list[dict[str, str]]:
+            return [
+                {"href": url, "title": "Cells", "body": "Cells divide"},
+                {"href": "https://example.edu/cells", "title": "Cells", "body": "Cells divide"},
+            ]
+
+    monkeypatch.setattr(wd, "DDGS", FakeDDGS)
+    result = wd.discover("cells")
+    assert [row["url"] for row in result["results"]] == ["https://example.edu/cells"]
+
+
+def test_discovery_normalizes_unicode_and_deduplicates_tracking_urls(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class FakeDDGS:
+        def __init__(self, timeout: int) -> None:
+            pass
+
+        def text(self, *args: object, **kwargs: object) -> list[dict[str, str]]:
+            return [
+                {"href": "https://München.de:443/cells?z=2&utm_source=test&a=1#section",
+                 "title": "Cells", "body": "Cells divide"},
+                {"href": "https://xn--mnchen-3ya.de:443/cells?a=1&z=2",
+                 "title": "Cells", "body": "Cells divide"},
+            ]
+
+    monkeypatch.setattr(wd, "DDGS", FakeDDGS)
+    result = wd.discover("cells")
+    assert len(result["results"]) == 1
+    assert result["results"][0]["url"] == "https://xn--mnchen-3ya.de:443/cells?a=1&z=2"
+    assert result["results"][0]["domain"] == "xn--mnchen-3ya.de"
+
 
 def test_normalize_domain_lower_idna_trailing_dot():
     from core import webdiscovery as wd
@@ -108,7 +160,8 @@ def test_dedup_strips_tracking_fragment_retains_meaningful():
         {"href": "https://example.com/a?x=1", "title": "Cells divide fast", "body": "Cells divide here"},
         {"href": "https://example.com/a#frag", "title": "Cells divide", "body": "Cells divide"},
     ]
-    out = wd.discover.__wrapped__ if hasattr(wd.discover, "__wrapped__") else None
+    assert wd.canonical_key(rows[0]["href"]) == wd.canonical_key(rows[1]["href"])
+    assert wd.canonical_key(rows[0]["href"]) != wd.canonical_key(rows[2]["href"])
     # Use high-level dedup helper if present, else exercise discover with fake DDGS
     if hasattr(wd, "deduplicate_results"):
         scored = [
@@ -119,6 +172,9 @@ def test_dedup_strips_tracking_fragment_retains_meaningful():
              "domain": "example.com", "file_type": "html", "score": 9.0,
              "canon": wd.canonical_key("https://example.com/a?x=1")},
         ]
+        out = wd.deduplicate_results(list(reversed(scored)))
+        assert len(out) == 1
+        assert out[0]["title"] == "Cells divide fast"
         assert wd.canonical_key("https://example.com/a?utm_source=x&x=1") == wd.canonical_key(
             "https://example.com/a?x=1"
         )

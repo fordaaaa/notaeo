@@ -1,9 +1,10 @@
 """Google Classroom: config gating, state binding, sync mapping (canned HTTP)."""
+from datetime import datetime, timedelta, timezone
+
 import httpx
 import pytest
 from fastapi.testclient import TestClient
 
-from api.main import app
 from core import classroom
 
 ENV = {
@@ -21,6 +22,60 @@ COURSEWORK = {
         {"id": "cw-2", "title": "Reading (no due date)"},
     ]
 }
+
+
+@pytest.mark.parametrize(("payload", "seconds"), [
+    ({}, None), ({"expires_in": None}, None), ({"expires_in": "bad"}, None),
+    ({"expires_in": []}, None), ({"expires_in": 3600}, 3600),
+    ({"expires_in": "60"}, 60), ({"expires_in": 0}, 0),
+])
+def test_token_expiry_preserves_fallback_and_valid_offsets(
+    payload: dict[str, object], seconds: int | None,
+) -> None:
+    fallback = datetime(2026, 10, 15, tzinfo=timezone.utc)
+    expected = fallback if seconds is None else fallback + timedelta(seconds=seconds)
+    assert classroom.token_expiry(payload, fallback) == expected
+
+
+@pytest.mark.parametrize("operation", ["courses", "coursework"])
+def test_classroom_non_object_listing_is_empty(operation: str) -> None:
+    with httpx.Client(transport=httpx.MockTransport(lambda request: httpx.Response(200, json=[]))) as http:
+        result = (classroom.list_courses(http, "synthetic-access") if operation == "courses"
+                  else classroom.list_coursework(http, "synthetic-access", "synthetic-course"))
+    assert result == []
+
+
+@pytest.mark.parametrize(("operation", "status", "message", "error_status"), [
+    ("exchange", 403, "token exchange failed", 502),
+    ("exchange", 200, "no access token", 502),
+    ("refresh", 401, "token refresh failed", 401),
+    ("courses", 403, "classroom api failed", 502),
+])
+def test_classroom_upstream_errors_are_explicit(
+    operation: str, status: int, message: str, error_status: int,
+) -> None:
+    with httpx.Client(transport=httpx.MockTransport(lambda request: httpx.Response(status, json={}))) as http:
+        with pytest.raises(classroom.ClassroomError, match=message) as error:
+            if operation == "exchange":
+                classroom.exchange_code(http, "synthetic-client", "synthetic-secret", "code", "https://example.test/cb")
+            elif operation == "refresh":
+                classroom.refresh_access_token(http, "synthetic-client", "synthetic-secret", "synthetic-refresh")
+            else:
+                classroom.list_courses(http, "synthetic-access")
+    assert error.value.status == error_status
+
+
+def test_classroom_refresh_returns_new_access_token() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.method == "POST"
+        assert request.url == classroom.TOKEN_URL
+        assert b"grant_type=refresh_token" in request.content
+        return httpx.Response(200, json={"access_token": "synthetic-new-access", "expires_in": 60})
+
+    with httpx.Client(transport=httpx.MockTransport(handler)) as http:
+        payload = classroom.refresh_access_token(http, "synthetic-client", "synthetic-secret", "synthetic-refresh")
+    assert payload["access_token"] == "synthetic-new-access"
+    assert payload["expires_in"] == 60
 
 
 def _google_transport() -> httpx.MockTransport:

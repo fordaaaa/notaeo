@@ -116,12 +116,19 @@ def _ai_tasks(service: AIService | None, user_id: str, goal: ExamGoal, sources: 
     for item in items:
         if not isinstance(item, dict) or not isinstance(item.get("chunk_seq"), int):
             raise ValueError("Invalid AI source reference")
-        reference = evidence.get((item.get("source_id"), item["chunk_seq"]))
+        source_id = item.get("source_id")
+        if not isinstance(source_id, str):
+            raise ValueError("Invalid AI source reference")
+        reference = evidence.get((source_id, item["chunk_seq"]))
         if reference is None:
             raise ValueError("AI cited an unavailable source")
         source, chunk = reference
-        topic, question, quote = (item.get(key) for key in ("topic", "prompt", "answer"))
-        if not all(isinstance(value, str) and value.strip() for value in (topic, question, quote)):
+        topic = item.get("topic")
+        question = item.get("prompt")
+        quote = item.get("answer")
+        if not isinstance(topic, str) or not isinstance(question, str) or not isinstance(quote, str):
+            raise ValueError("AI practice was incomplete")
+        if not topic.strip() or not question.strip() or not quote.strip():
             raise ValueError("AI practice was incomplete")
         if len(topic) > 120 or len(question) > 1_000 or len(quote) > 2_000:
             raise ValueError("AI practice exceeded its content limit")

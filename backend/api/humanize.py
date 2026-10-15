@@ -5,7 +5,7 @@ from __future__ import annotations
 from fastapi import Depends, FastAPI, HTTPException
 from pydantic import BaseModel, Field, field_validator
 
-from api.deps import get_ai_service, get_current_user, get_store
+from api.deps import get_ai_service, get_current_user
 from core import humanize
 from core.api import AIError
 from core.models import (

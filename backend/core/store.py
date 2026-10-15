@@ -12,7 +12,7 @@ import hmac
 import json
 import os
 import secrets
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -758,7 +758,7 @@ class Store:
         existing = next((a for a in assignments if a.id == assignment_id), None)
         if existing is None:
             return None
-        columns: dict[str, str] = {}
+        columns: dict[str, str | int | None] = {}
         if "class_id" in fields:
             columns["class_id"] = fields["class_id"]
         if "title" in fields and fields["title"] is not None:

@@ -20,6 +20,7 @@ from core.models import (
     ResearchPlanResponse,
     ResearchSynthesizeRequest,
     ResearchSynthesisResponse,
+    SourceSummary,
     User,
 )
 from core.websearch import WebSearchError, search_web
@@ -132,7 +133,7 @@ def register(app: FastAPI) -> None:
             store, notebook_id, f"Research overview: {body.topic}", text, extra_meta=extra_meta
         )
         return ResearchSynthesisResponse(
-            source=_summary(source),
+            source=SourceSummary.model_validate(_summary(source)),
             origin=origin,
             model=model,
         )

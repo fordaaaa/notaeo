@@ -1,3 +1,6 @@
+from fastapi.testclient import TestClient
+import pytest
+
 def test_health(client):
     assert client.get("/api/health").json() == {"ok": True}
 
@@ -288,3 +291,31 @@ def test_combined_upload_cap_rejects_bulk_request(client, monkeypatch):
     assert len(body["sources"]) == 4
     assert len(body["errors"]) == 1
     assert "combined" in body["errors"][0]["detail"]
+
+
+def test_update_source_deleted_after_owned_lookup_returns_404(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from api.main import app
+    from core.models import Source
+    from core.store import Store
+
+    notebook = client.post("/api/notebooks", json={"name": "Race regression"}).json()
+    source = client.post(f"/api/notebooks/{notebook['id']}/sources/text", json={
+        "title": "Lecture", "text": "Cells use energy for cellular processes.",
+    }).json()
+    store: Store = app.state.store
+    original_update = store.update_source
+
+    def delete_then_update(
+        notebook_id: str, source_id: str, *, title: str | None = None,
+        tags: list[str] | None = None,
+    ) -> Source | None:
+        assert store.delete_source(notebook_id, source_id)
+        return original_update(notebook_id, source_id, title=title, tags=tags)
+
+    monkeypatch.setattr(store, "update_source", delete_then_update)
+    response = client.patch(f"/api/sources/{source['id']}", json={"title": "Edited lecture"})
+    assert response.status_code == 404
+    assert response.json() == {"detail": "source not found"}
+    assert client.get(f"/api/sources/{source['id']}").status_code == 404

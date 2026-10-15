@@ -76,8 +76,8 @@ class _ArticleParser(HTMLParser):
         self._paragraphs: list[ArticleParagraph] = []
         self._skip_depth = 0
 
-    def handle_starttag(self, tag: str, attrs_list: list[tuple[str, str | None]]) -> None:
-        attrs = {key.lower(): value or "" for key, value in attrs_list}
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        attributes = {key.lower(): value or "" for key, value in attrs}
         tag = tag.lower()
         if self._skip_depth:
             if tag not in _VOID:
@@ -86,19 +86,19 @@ class _ArticleParser(HTMLParser):
         if tag in {"script", "style", "template", "noscript", "nav", "footer", "aside", "form"}:
             self._skip_depth = 1
             return
-        marker = f"{attrs.get('id', '')} {attrs.get('class', '')}"
+        marker = f"{attributes.get('id', '')} {attributes.get('class', '')}"
         if tag in {"div", "section"} and _BOILERPLATE.search(marker):
             self._skip_depth = 1
             return
         if tag == "meta":
-            key = (attrs.get("property") or attrs.get("name") or "").lower()
-            content = _clean(attrs.get("content", ""))
+            key = (attributes.get("property") or attributes.get("name") or "").lower()
+            content = _clean(attributes.get("content", ""))
             for field, keys in self._META_KEYS.items():
                 if key in keys and content and field not in self.meta:
                     self.meta[field] = content
             return
-        if tag == "link" and attrs.get("rel", "").lower() == "canonical":
-            self.canonical = attrs.get("href") or None
+        if tag == "link" and attributes.get("rel", "").lower() == "canonical":
+            self.canonical = attributes.get("href") or None
         elif tag == "title":
             self._title_tag = True
         elif tag in {"h1", "h2", "h3", "h4"}:
@@ -127,7 +127,7 @@ class _ArticleParser(HTMLParser):
             return
         if tag == "title":
             self._title_tag = False
-        elif tag in {"h1", "h2", "h3", "h4"}:
+        elif tag in {"h1", "h2", "h3", "h4"} and self._heading_parts is not None:
             heading = _clean("".join(self._heading_parts))
             if heading:
                 if not self.meta.get("title") and tag == "h1":

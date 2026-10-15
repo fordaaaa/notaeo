@@ -2,6 +2,7 @@ from datetime import timedelta
 import json
 
 import pytest
+from fastapi.testclient import TestClient
 
 from core.api import AIService
 from core.models import utcnow
@@ -14,6 +15,42 @@ TEXT = (
     "Mitochondria release energy from glucose during cellular respiration. "
     "Meiosis produces four haploid cells with half the chromosomes."
 )
+
+
+@pytest.mark.parametrize(("field", "value"), [
+    ("source_id", None), ("source_id", []), ("source_id", 0),
+    ("chunk_seq", None), ("chunk_seq", "0"), ("chunk_seq", -1),
+    ("topic", None), ("prompt", []), ("answer", 42),
+    ("topic", " "), ("prompt", ""), ("answer", "\t"),
+    ("topic", "x" * 121), ("prompt", "x" * 1001), ("answer", "x" * 2001),
+])
+def test_malformed_ai_task_fields_preserve_basic_practice(
+    client: TestClient, field: str, value: object,
+) -> None:
+    _, path, source, _ = setup(client)
+    assert source is not None
+    task: dict[str, object] = {"topic": "Photosynthesis", "prompt": "What does photosynthesis convert?",
+            "answer": TEXT.split(". ")[0] + ".", "source_id": source["id"], "chunk_seq": 0}
+    task[field] = value
+    _enable_ai(client, json.dumps({"tasks": [task]}))
+    session = draft(client, path, use_ai=True)
+    assert session["generated_by"] == "basic"
+    assert session["model"] is None
+    assert session["notice"]
+    assert session["tasks"]
+    assert all(item["source_id"] == source["id"] for item in session["tasks"])
+
+
+def test_coach_requires_goal_before_session_and_returns_404_for_missing_task(client: TestClient) -> None:
+    notebook = client.post("/api/notebooks", json={"name": "No goal yet"}).json()
+    response = client.post(f"/api/notebooks/{notebook['id']}/coach/sessions", json={})
+    assert response.status_code == 400
+    assert "exam goal" in response.json()["detail"]
+    _, path, _, _ = setup(client)
+    session = draft(client, path)
+    response = client.post(f"{path}/sessions/{session['id']}/tasks/aaaaaaaaaaaa/explain", json={})
+    assert response.status_code == 404
+    assert response.json()["detail"] == "task not found"
 
 
 def _enable_ai(client, text, actual="test-model", requested="test-model", calls=None):
@@ -71,6 +108,7 @@ def test_persisted_revision_loop_prioritizes_latest_missed_topic(client):
         raise AssertionError("basic study must not call AI")
     client.app.state.ai_service = AIService(model="test-model", handler=_fail)
     notebook, path, source, goal = setup(client)
+    assert source is not None
     session = draft(client, path)
     assert session["generated_by"] == "basic"
     assert 1 <= len(session["tasks"]) <= 10
@@ -160,6 +198,7 @@ def test_every_coach_route_requires_auth_and_hides_other_owners(client):
 
 def test_ai_plan_uses_validated_source_evidence_and_explanation(client):
     _, path, source, _ = setup(client)
+    assert source is not None
     payload = {"tasks": [{"topic": "Photosynthesis", "prompt": "What does photosynthesis convert?",
                           "answer": "Photosynthesis converts sunlight into chemical energy inside chloroplasts.",
                           "source_id": source["id"], "chunk_seq": 0}]}
@@ -214,6 +253,7 @@ def test_same_user_cannot_mix_sessions_between_notebooks(client):
 
 def test_ai_rejects_unsupported_answer_even_with_correct_source(client):
     _, path, source, _ = setup(client)
+    assert source is not None
     payload = {"tasks": [{"topic": "Photosynthesis", "prompt": "What is it?", "answer": "Invented information absent from this source.", "source_id": source["id"], "chunk_seq": 0}]}
     _enable_ai(client, json.dumps(payload))
     session = draft(client, path, use_ai=True)

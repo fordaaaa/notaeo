@@ -44,11 +44,12 @@ def register(app: FastAPI) -> None:
     def generate(notebook_id: str, body: CoachGenerationRequest, user: User = Depends(get_current_user)) -> CoachSession:
         store = owned(notebook_id, user)
         current = store.get_coach_state(user.id, notebook_id)
-        if current.goal is None:
+        goal = current.goal
+        if goal is None:
             raise HTTPException(status_code=400, detail="Set an exam goal before building a session")
         if any(item.status == "active" for item in current.sessions):
             raise HTTPException(status_code=409, detail="Finish your active session before building another")
-        return _result(lambda: store.create_coach_session(user.id, coach.build_session(store, user.id, notebook_id, current.goal, body.use_ai, service=get_ai_service(app))))
+        return _result(lambda: store.create_coach_session(user.id, coach.build_session(store, user.id, notebook_id, goal, body.use_ai, service=get_ai_service(app))))
 
     @app.post("/api/notebooks/{notebook_id}/coach/sessions/{session_id}/start", response_model=CoachSession)
     def start(notebook_id: str, session_id: str, body: CoachStartRequest, user: User = Depends(get_current_user)) -> CoachSession:

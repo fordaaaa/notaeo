@@ -141,6 +141,8 @@ def register(app: FastAPI) -> None:
         updated = store.update_source(
             src.notebook_id, source_id, title=body.title, tags=body.tags
         )
+        if updated is None:
+            raise HTTPException(status_code=404, detail="source not found")
         return _summary(updated)
 
     @app.get("/api/sources/{source_id}")
