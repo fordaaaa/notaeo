@@ -1,9 +1,10 @@
 # Proposed v1: production verification gate
 
 Status: Phase 1 approved by the owner (`yes`, 2026-10-12); Phase 1b remediation
-was explicitly approved and completed on 2026-10-15; later phases
-remain pending. The local backend gate passes after remediation; the automated
-verifier and complete application release gates remain unfinished. Interview
+was explicitly approved and completed on 2026-10-15. Phase 2 was explicitly
+approved on 2026-10-16 and completed on 2026-10-17; Phase 3 remains pending.
+The automated local backend gate passes; complete application release gates
+remain unfinished. Interview
 waived on 2026-10-12. The owner has not tested enough to supply product evidence. This
 is the proposed first feature for the requested development loop. Prioritizing
 it over account recovery or a student-facing feature is TBD — needs validation
@@ -58,7 +59,7 @@ via a baseline and subsequent maintainer trials.
 
 ## Scope
 
-### MVP — approved backend boundary; later implementation pending
+### MVP — approved backend boundary
 
 - Assess build first, then types, lint, tests with coverage, security and diff.
   A failed build stops execution of subsequent checks.
@@ -98,8 +99,8 @@ of this proposed gate MVP unless the owner changes its scope.
 | Business outcome | Status |
 | --- | --- |
 | Maintainer agrees which release boundary and evidence establish readiness | Backend boundary approved; native release evidence pending |
-| Maintainer can reproduce an honest blocker report for the approved scope | Baseline and approved remediation complete; local backend checks green; automated report pending |
-| Independent reviewers confirm failure detection and privacy boundaries | Phase 1/1b reviews approve; future verifier review pending |
+| Maintainer can reproduce an honest blocker report for the approved scope | Ordered automated backend gate implemented and exercised; 668 tests pass |
+| Independent reviewers confirm failure detection and privacy boundaries | Phase 2 native Luna code/security reviews approve; zero unresolved findings |
 | A release candidate satisfies all declared requirements and launch checks | Pending |
 
 ## Open questions
@@ -125,5 +126,5 @@ The waived interview will not be asked again for this loop.
 
 Validation status: problem assumption; users concrete (maintainer, not a
 validated student segment); metrics defined for correctness, outcome metrics TBD.
-Suggested next step: review PLAN.md Phase 2 and obtain explicit approval before
-implementing the automated verifier; the completed Phase 1b needs no reapproval.
+Suggested next step: use the completed verifier on the next approved change.
+Phase 3 documentation/release work still requires explicit approval.

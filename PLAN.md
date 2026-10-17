@@ -4,9 +4,10 @@ Feature: proposed production verification gate. SPEC.md is the requirements
 source. Interview waived by the owner on 2026-10-12 because the app has not been
 tested enough to provide evidence. Product assumptions remain unvalidated.
 
-**Status: Phase 1 baseline and approved Phase 1b remediation complete (2026-10-15); local backend gate green.**
+**Status: Phases 1/1b/2 complete; Phase 2 verified 2026-10-17. Phase 3 pending.**
 The 2026-10-12 approval covered Phase 1; the owner explicitly added Phase 1b
-on 2026-10-15. Phase 2 and later phases remain unapproved. A request to
+on 2026-10-15. The owner explicitly approved Phase 2 on 2026-10-16.
+Phase 3 remains unapproved. A request to
 continue generally does not override the owner's Step 2 approval boundary.
 
 Restated requirements:
@@ -61,8 +62,10 @@ SPEC.md, PLAN.md, docs/DEVELOPMENT_LOOP.md and HANDOFF.md.
 | `docs/VERIFICATION_BASELINE.md` | CREATE | Capture measured scope, exact commands and unresolved baseline issues; Phase 1 |
 | `backend/tests/platform/test_verification_configuration.py` | CREATE | Test config/coverage policy with temporary fixtures; Phase 1 |
 | `backend/core/verification.py` | CREATE | Pure evidence validation, stage ordering and report evaluation; Phase 2 |
+| `backend/core/verification_security.py` | CREATE | Bounded, redacted source/audit evidence; Phase 2 implementation refinement |
 | `backend/scripts/verify.py` | CREATE | Explicit CLI commands, exit status, bounded/redacted diagnostics; Phase 2 |
 | `backend/tests/core/test_verification.py` | CREATE | Pure rule, boundary and formatting regressions; Phase 2 |
+| `backend/tests/core/test_verification_security.py` | CREATE | Source privacy/path and audit evidence regressions; Phase 2 implementation refinement |
 | `backend/tests/platform/test_verification_cli.py` | CREATE | CLI/subprocess/API integration on owned temporary fixtures; Phase 2 |
 | `docs/VERIFICATION.md` | CREATE | Invocation, meaning of results, platform limits and resume instructions; Phase 3 |
 | `.gitignore` | UPDATE | Ignore coverage/generated reports without hiding source or baseline evidence; Phase 3 |
@@ -304,7 +307,64 @@ explicit blockers rather than hidden in aggregate coverage.
 
 Goal: expose deterministic reports that cannot turn missing or failing evidence
 into READY. Dependencies: Phase 1 complete and its blocking scope/tool decisions
-resolved. Estimate: 5–8 hours. Status: pending, not started.
+resolved. Estimate: 5–8 hours. Status: COMPLETE, explicitly approved by the
+owner (`Yes—implement Phase 2`, 2026-10-16), verified 2026-10-17.
+
+Actual end-to-end command, from backend: `uv run scripts/verify.py` exited 0.
+Build PASS, Pyright 58 files / 0 errors or warnings, Ruff 0, 668/668 tests,
+Security 0 findings, Diff 11 files (10 intended plus unrelated preexisting
+`.serena/project.yml`, excluded from commits). Application coverage is
+5845/6399 lines (91.34%), 1605/1978 branches (81.14%), combined 88.93%.
+The CLI collects scripts additionally while preserving the full API/core app
+denominator. Each new production file independently meets both 80% floors:
+evidence 92.99%/85.29%, security 91.49%/85.71%, CLI 90.49%/80.77% (lines/branches).
+There are still 22 existing excluded lines; no new exclusions/suppressions.
+Actual `--security-only` also exits 0 with `SECURITY: PASS.` and no READY claim.
+Raw gate output: `/tmp/notaeo-phase2-real-gate.log`; preserved coverage JSON:
+`backend/build/verification/phase2-final-coverage.json`. Per-run raw artifacts
+are unique and removed; an independent observer copied only the coverage JSON
+for this evidence without changing command behavior.
+
+RED evidence: core/security tests initially could not import missing modules;
+CLI initially 12 failed/1 passed. Integration review regressions then showed
+16 failed/30 passed, additional bounded-output tests 2 failed, source privacy
+tests 2 failed, and accurate security counts 3 failed/1 passed before fixes.
+The first full suite exposed the preexisting calendar fixture's fixed Oct 15
+date after it expired: 1 failed/659 passed. Only the integration test clock was
+frozen; no calendar app behavior changed. Its five tests pass. All tests remain
+enabled. Native cross-review and security re-audit approve, zero unresolved
+CRITICAL/HIGH/MEDIUM/LOW findings; no secret rotation indicated. Six original
+Luna-low identities were reused, no extra agents or OpenCode agents.
+
+Learned: isolate both artifacts and subprocess streams. Real pip-audit emits
+status on stderr alongside JSON on stdout; merging them makes good evidence
+unparseable. Both streams are now drained concurrently under one live byte cap.
+
+Session routing override: owner requests exactly six native Luna agents at low
+reasoning and no OpenCode agents. Startup bridge health check still passed;
+no OpenCode coding/review agent is used in this phase. Available concurrency is
+three workers plus coordinator, so three test authors establish RED, then three
+implementers own evidence logic, CLI and security scanning respectively.
+Coordinator integrates and assigns independent cross-review to existing workers.
+Brig backend context refreshed; unrelated `.serena/project.yml` stays excluded.
+
+Implementation refinement within this approved phase: separate pure source/audit
+scanning into `backend/core/verification_security.py`, with focused behavior
+tests in `backend/tests/core/test_verification_security.py`. These two additional
+files isolate the approved security-scan behavior; no feature scope is added.
+Remaining files are the four originally planned Phase 2 files. Root owns
+SPEC/PLAN/HANDOFF/evidence only until RED tests are established.
+
+Shared integration contract: frozen `StageResult` evidence, six ordered stages,
+typed JSON/JUnit/coverage parsers and fail-closed `is_ready`/`format_report`.
+`scripts/verify.py` uses fixed argv (never user command strings), unique temporary
+artifacts, process-group cleanup, bounded/redacted diagnostics, build-first stop,
+and a scoped `--security-only` mode that cannot emit overall READY. All API/core
+modules remain the application coverage denominator; additional script collection
+measures touched CLI code separately. Current temporary worker contract is
+`backend/build/verification/PHASE2_CONTRACT.md`; actual committed implementation
+and tests become the authoritative interface. No source scanner reads data,
+environment files or paths outside the repository, including external symlinks.
 
 1. **Action:** write RED unit tests for every stage failure, missing tools,
    not-run/cancelled/timed-out stages, malformed output, empty suite, absent
@@ -347,7 +407,7 @@ Exact targeted commands, from `backend/`:
 ```bash
 uv run pytest tests/core/test_verification.py tests/platform/test_verification_cli.py -q
 uv run coverage run --branch --source=core,api -m pytest
-uv run coverage json -o .verification-coverage.json
+uv run coverage json -o build/verification/coverage.json
 uv run coverage report --fail-under=80
 uv run pyright
 uv run ruff check core api scripts/verify.py tests/core/test_verification.py tests/platform/test_verification_cli.py
@@ -408,7 +468,7 @@ uv run coverage report --fail-under=80
 # Read JSON to enforce independent line and branch floors on declared scopes.
 uv run pip-audit --local
 # Audit runtime dependencies separately; dev-only packages are not hosted services.
-# After Phase 2 exists: separately run context-aware scanning for the audit.
+# Implemented Phase 2: separately run context-aware scanning for the audit.
 uv run scripts/verify.py --security-only
 # This scan-only mode never emits overall READY or substitutes for the full gate.
 
@@ -416,7 +476,7 @@ uv run scripts/verify.py --security-only
 git diff --stat
 git diff --check
 
-# Proposed end-to-end gate invocation after Phase 2 exists, from backend/:
+# Implemented end-to-end backend gate, from backend/:
 uv run scripts/verify.py
 
 # Native checks are additional evidence when approving native release scope.
@@ -460,14 +520,14 @@ Chosen check-tool references: [Ruff configuration](https://docs.astral.sh/ruff/c
 - [x] Independent OpenCode planning review: APPROVE, zero findings (2026-10-12).
 - [x] Owner approved plan, backend boundary and unknown-value convention (`yes`, 2026-10-12); Phase 1 only.
 - [x] Phase 1 baseline/policy tests and evidence collected; full verification blocked by recorded existing issues, not accepted for release.
-- [ ] Phase 2 ordered report/CLI passes RED→GREEN and unit/API/CLI integration.
-- [ ] Separate >=80% line and branch coverage verified on approved touched code.
-- [x] Full declared suite scope (`api`/`core`, all modules) approved and reported accurately; branch floor FAILS.
-- [ ] Review reads full changed files and ends with severity counts/verdict.
-- [ ] Security audit reports contextual findings, rotation decision and top fixes.
-- [ ] Mandatory scoped build/types/lint/tests/security/diff checks measured.
+- [x] Phase 2 ordered report/CLI passes RED→GREEN and unit/API/CLI integration.
+- [x] Separate >=80% line and branch coverage verified on approved touched code.
+- [x] Full declared suite scope (`api`/`core`, all modules) reported accurately; both floors PASS after Phases 1b/2.
+- [x] Review reads full changed files and ends with severity counts/verdict.
+- [x] Security audit reports contextual findings, rotation decision and top fixes.
+- [x] Mandatory scoped build/types/lint/tests/security/diff checks measured.
 - [ ] Pre-launch controls and platform runtime evidence actually verified.
-- [ ] Handoff and phase lessons saved; no unresolved critical finding shipped.
+- [x] Handoff and phase lessons saved; no unresolved critical finding committed.
 
 Learned during planning: root Brig retrieval requires explicit
 `slug="research-backend"`; an OpenCode worker reported that slug unavailable in

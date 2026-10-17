@@ -1,11 +1,102 @@
 # HANDOFF.md
 
-Updated 2026-10-15. Branch `main`; installed native macOS and Windows apps
+Updated 2026-10-17. Branch `main`; installed native macOS and Windows apps
 are the priority. The website, browser frontend and static serving were
 removed from both public and hosted repositories on 2026-10-07. Mobile lives
 in `research-mobile`; its bounded Settings/coach pass is active.
 
-## Current work: Phase 1b remediation — complete, local gate green
+## Current work: Phase 2 verifier — complete, gate green
+
+Owner approved `Yes—implement Phase 2` on 2026-10-16 and requested six native
+Luna workers at low reasoning, with no OpenCode agents. Used exactly six in two
+waves: core/CLI/security test authors, then three matching implementers. Root
+passed the existing bridge startup health check without invoking OpenCode
+agents; the explicit session routing override supersedes the delegation
+preference. Do not ask for Phase 2 approval again. Phase 3 remains unapproved.
+
+Three new production files: `backend/core/verification.py`,
+`backend/core/verification_security.py`, `backend/scripts/verify.py`. Tests:
+`backend/tests/core/test_verification.py`, `test_verification_security.py`,
+`backend/tests/platform/test_verification_cli.py`. Pure ordered evidence parser,
+fixed-argv CLI, bounded child output/lifecycle, per-run coverage/JUnit artifacts,
+read-only redacted source scanning and dependency audit are implemented. Initial
+RED: core/security import failures; CLI 12 failed/1 passed. Independent native
+reviews and root regressions exposed real bool-code/coverage-omission/source-
+inventory/symlink/untracked/diagnostic-bound failures, all now fixed.
+Saved RED logs: `/tmp/notaeo-phase2-*-red.log`; worker results in
+`/tmp/notaeo-phase2-*-green.log` may predate later fixes; the final gate below
+supersedes those intermediate worker results.
+Current contract: `backend/build/verification/PHASE2_CONTRACT.md` (ignored);
+PLAN.md records its durable scope. Child output now uses a bounded selector-
+drained pipe instead of a potentially unbounded temporary output file.
+
+Root completed integration and the actual end-to-end gate on 2026-10-17:
+
+VERIFICATION REPORT — Build: PASS, Types: PASS (0), Lint: PASS (0), Tests: PASS (668/668, 88.93%), Security: PASS (0), Diff: (11 files). Overall: READY. Issues to fix (numbered).
+
+1. No blocking issue in this approved backend change. The 11-file verification
+   snapshot includes 10 intended files and the unrelated preexisting
+   `.serena/project.yml`; that unrelated file stays outside our commits.
+2. Complete application release remains NO-GO: native runtime E2E, Windows
+   packaging/runtime, notarization and hosted operations/monitoring are separate
+   unvalidated gates. No push or deployment performed.
+
+Actual command from backend: `uv run scripts/verify.py`, exit 0. It runs the
+real PyInstaller sidecar build before type/lint/full coverage tests/audit/diff.
+Pyright checked 58 files with 0 errors/warnings. Application coverage keeps every
+API/core module: 5845/6399 lines (91.34%), 1605/1978 branches (81.14%), combined
+88.93%. Scripts are additionally collected for touched CLI coverage. Per-file
+line/branch floors: evidence 92.99%/85.29%, security 91.49%/85.71%, CLI
+90.49%/80.77%. No new exclusions or suppressions; 22 old excluded lines remain.
+Read-only scan checks 53 production source paths with zero findings. Fresh
+strict pip-audit has zero findings. `uv run scripts/verify.py --security-only`
+also exited 0 and printed `SECURITY: PASS.` without an overall READY claim.
+
+Evidence: `/tmp/notaeo-phase2-real-gate.log`,
+`/tmp/notaeo-phase2-security-only.log`, `/tmp/notaeo-phase2-types.json`,
+`/tmp/notaeo-phase2-lint.log`, and ignored
+`backend/build/verification/phase2-final-coverage.json`. A read-only observer
+preserved coverage JSON before the gate removed its unique temporary directory;
+it did not alter checks. Earlier manual full suite: 1 failed/659 passed exposed
+the calendar test's fixed October 15 date; only its clock fixture was frozen.
+The five calendar tests now pass, as does the final 668-test suite. No test was
+deleted, disabled or skipped. Root integration also fixed the real pip-audit
+stderr/JSON conflict; both output streams are independently drained under one
+128 KiB live cap, only stdout is parsed, and raw diagnostics are not printed.
+
+Independent reviews reuse test-author identities that did not implement the
+reviewed modules: `luna_core_tests` approves CLI/core/calendar plus stream delta;
+`luna_cli_tests` approves combined evidence/security/CLI boundaries;
+`luna_security_tests` approves the final security boundary. Final unresolved
+CRITICAL/HIGH/MEDIUM/LOW counts all zero; no immediate secret rotation indicated.
+They read full scoped code/tests and requirements; root ran the real gate.
+The other three Luna workers implemented evidence, security and CLI respectively.
+
+All changed files: `backend/core/verification.py`,
+`backend/core/verification_security.py`, `backend/scripts/verify.py`,
+`backend/tests/core/test_verification.py`,
+`backend/tests/core/test_verification_security.py`,
+`backend/tests/platform/test_verification_cli.py`,
+`backend/tests/api/test_classes.py`, `PLAN.md`, `SPEC.md`, `HANDOFF.md`.
+Only public research changed. No runtime dependencies, schema/data, native UI,
+mobile or private hosted code changed. Brig `research-backend` and
+`research-verification-tests` indexes refreshed. Decisions remain in these docs.
+
+Next three steps: (1) use the verifier on the next approved change;
+(2) select the next desktop/product priority or explicitly approve PLAN.md
+Phase 3 if its documentation/release work is desired; (3) validate native
+critical flows on actual platforms before any application-release claim.
+Phase 2 needs no reapproval. Keep Phase 3 pending; do not infer deployment
+authorization from passing local checks.
+
+Resume from `git status --short`, read PLAN.md Phase 2 and these new files, then
+run targeted tests with `uv run pytest tests/core/test_verification.py
+tests/core/test_verification_security.py tests/platform/test_verification_cli.py -q`
+from backend. Full actual gate is `uv run scripts/verify.py` from backend;
+`--security-only` runs just the scoped audit. It packages the macOS sidecar; full native app
+runtime, Windows packaging and hosted operations remain separate release gates.
+
+## Completed: Phase 1b remediation — local gate green
 
 Owner asked to continue development with fresh subagent perspectives on
 2026-10-15. Two independent read-only OpenCode agents reassessed the baseline.
@@ -44,11 +135,12 @@ native subagent substitution. `.serena/project.yml` was modified on arrival and
 is preserved outside our commits. Only the public research repo changed; no
 push, deployment, schema/data migration or native/private/mobile source change.
 
-Next three steps: (1) owner manually tests the rebuilt
+At Phase 1b completion the next three steps were: (1) owner manually tests the rebuilt
 `macos/build/Build/Products/Release/Notaeo.app`; (2) choose the next priority and
 explicitly approve PLAN.md Phase 2 if the automated verifier is desired;
 (3) implement only that approved phase with RED/GREEN, independent OpenCode
-review and the full gate. Phase 2/3 remain unapproved and unimplemented. Local
+review and the full gate. Phase 2 was subsequently approved/completed above;
+Phase 3 remains pending. Local
 patch readiness is separate from application release: native critical-flow E2E,
 Windows runtime/packaging, notarization and hosted operations/monitoring are
 still unvalidated; application release remains NO-GO.
@@ -107,8 +199,8 @@ on the 22 types, 3 lint, dependency advisories and missing branch coverage;
 (2) implement only approved fixes with RED-first behavior tests, independent
 review and security assessment; (3) rerun the complete ordered gate and commit
 only after green, then request the next named phase. These remediation actions
-are complete under the later explicit Phase 1b approval. Phase 2 still needs
-separate approval.
+are complete under the later explicit Phase 1b approval. Phase 2 received its
+separate approval on 2026-10-16 and is now complete as recorded above.
 The proposed patched urllib3 version is 2.8.0; that would be a runtime dependency
 change requiring new packaging and audit evidence, not a no-op tool update.
 
