@@ -1,6 +1,10 @@
 """Classes, assignments, and the calendar endpoint."""
+from datetime import datetime, timezone
+
+import pytest
 from fastapi.testclient import TestClient
 
+from api import classes as classes_api
 from api.main import app
 
 def _other_user(email: str) -> TestClient:
@@ -30,7 +34,8 @@ def test_class_crud_round_trip(client: TestClient):
     assert client.get("/api/classes").json() == []
 
 
-def test_assignment_crud_and_calendar_buckets(client: TestClient):
+def test_assignment_crud_and_calendar_buckets(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(classes_api, "utcnow", lambda: datetime(2026, 10, 14, 12, tzinfo=timezone.utc))
     class_id = _class(client, "Biology", "sea")
     created = client.post(
         "/api/assignments",
