@@ -45,9 +45,9 @@ account/data operations. No backend behavior change is assumed necessary.
 
 | Business outcome | Status |
 | --- | --- |
-| Duplicate warning respects the student's choice | Complete locally;12 consent/state cases,106 full native cases, signed build and independent approval |
-| Maintainer can reproduce the real native-client study workflow | Pending |
-| Reviewed commits, evidence and remaining GUI gaps saved | Pending |
+| Duplicate warning respects the student's choice | Complete locally; 12 consent/state cases, 106 full native cases, signed build and independent approval |
+| Maintainer can reproduce the real native-client study workflow | Complete locally; packaged Swift/HTTP/SQLite workflow and four runner failure cases pass |
+| Reviewed commits, evidence and remaining GUI gaps saved | Local implementation reviewed; evidence in REVIEW.md and resume instructions in HANDOFF.md |
 
 ## Open questions and risks
 
@@ -64,4 +64,5 @@ must report that honestly rather than shrink the denominator.
 | Client integration described as GUI E2E | Plausible × misleading release claim | Separate actual request/SQLite evidence from dialog-click/physical trials |
 
 Validation status: technical problem observed, users concrete, technical metrics
-defined and learning outcomes TBD. Next: grounded implementation and retest.
+defined and learning outcomes TBD. Next: owner course-material and GUI trials;
+the automated client/API checks do not validate student adoption or usability.

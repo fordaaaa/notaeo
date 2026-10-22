@@ -34,12 +34,13 @@ not a GUI-click test.
 | macos/Research/SourcePasteController.swift | CREATE | Tested duplicate decision/snapshot/scope logic |
 | macos/Research/MainView.swift | UPDATE | Explicit copy/cancel controls and safe draft clearing |
 | macos/ResearchTests/SourcePasteControllerTests.swift | CREATE | Duplicate/confirm/cancel/context/failure/concurrency acceptance |
-| macos/Research.xcodeproj/project.pbxproj | UPDATE | Phase1 source/test registration only |
-| macos/WorkflowChecks/PackagedWorkflow.swift | CREATE | Production Swift client/API/AppState/SQLite workflow and owned temporary sidecar |
+| macos/Research.xcodeproj/project.pbxproj | UPDATE | Phase 1 source/test registration only |
+| macos/WorkflowChecks/PackagedWorkflow.swift | CREATE | Production Swift client/API/AppState/SQLite workflow against the shell-owned fixture |
+| macos/WorkflowChecks/check_runner_failures.py | CREATE | Missing/exited/invalid/interrupted fixture regressions |
 | scripts/test_macos_workflows.sh | CREATE | Build packaged app/sidecar and invoke dedicated lane |
 | docs/native-workflows/{SPEC,PLAN,REVIEW}.md; HANDOFF.md | CREATE/UPDATE | Current requirements, evidence, review and resume |
 
-DELETE none. Prefer a test-owned Process fixture over production environment
+DELETE none. Prefer a test-owned child process over production environment
 bypass hooks; change production lifecycle only if integration evidence requires
 a narrowly reviewed fix. No dependency, database or hosted API changes planned.
 
@@ -51,12 +52,12 @@ Goal: warning cannot write a second source without a current explicit decision.
 Riskiest phase first; provisional 2–4h.
 
 Complete locally. Acceptance tests were RED for absent paste state/transport
-contracts. Targeted9/9 first passed; expanded12/12 and full106/106 pass after
+contracts. Targeted 9/9 first passed; expanded 12/12 and full 106/106 pass after
 Unicode/large snapshot, cancellation, context and overlapping completion cases.
-Controller82/83 executable lines (98.80%); all native1201/7008 (17.14%). Swift
+Controller 82/83 executable lines (98.80%); all native 1201/7008 (17.14%). Swift
 branch coverage is unavailable; full native UI coverage remains a release gap.
 Signed arm64 sidecar/Release app packaging passes. Independent OpenCode review
-APPROVE with zero findings. The coding worker timed out after360s with no edits;
+APPROVE with zero findings. The coding worker timed out after 360s with no edits;
 the coordinator took over implementation and kept review independent. Evidence
 `/tmp/notaeo-paste-{red,green,full-green,build}.log` and `-coverage.json`.
 Learned: approval must consume the snapshot synchronously; dialog dismissal
@@ -78,7 +79,16 @@ must not revoke a decision already made or make a second request itself.
 ## Phase 2 — Packaged native-client workflow lane
 
 Goal: detect real Swift/HTTP/SQLite contract mismatches with no mocked backend.
-Depends on Phase1 commit; provisional 2–4h.
+Depends on Phase 1 commit; provisional 2–4h.
+
+Complete locally. Missing-fixture RED preceded the real packaged workflow;
+the interruption regression then exposed a child left alive by the first
+Swift-owned lifecycle design. The shell now owns both children and cleans up
+before deleting their data. Canonical build/workflow and all four failure cases
+pass. Final independent OpenCode code review approves with zero findings.
+Evidence and independent execution results are recorded in REVIEW.md.
+Learned: a wrapper must directly supervise every long-lived child; forwarding
+a signal alone did not prove cleanup. Static review missed that runtime defect.
 
 1. RED: dedicated native-client checks fail clearly without their packaged fixture.
    Tests require an actual loopback desktop-token+account session: register,
@@ -90,7 +100,8 @@ Depends on Phase1 commit; provisional 2–4h.
    Avoid production Keychain/defaults. Await readiness with a deadline; terminate
    only the owned process and prove cleanup. Never fall back to real data.
 3. GREEN: a build/run wrapper compiles the production client/model/state sources
-   into an isolated CLI check, keeping the normal native unit lane independent. Missing preparation fails, never skip. Fix only failures
+   into an isolated CLI check, keeping the normal native unit lane independent.
+   Missing preparation fails, never skip. Fix only failures
    demonstrated by this lane, with a separate RED/targeted regression.
 4. Validate both native lanes and signed packaging, independently review/retest,
    document actual coverage and remaining GUI/Windows gaps, commit and hand off.
@@ -100,15 +111,21 @@ Depends on Phase1 commit; provisional 2–4h.
 ```bash
 DEVELOPER_DIR=/Applications/Xcode-26.3.0.app/Contents/Developer xcodebuild -project macos/Research.xcodeproj -scheme Research -configuration Debug -derivedDataPath /tmp/notaeo-native-workflow-unit -destination 'platform=macOS,arch=arm64' CODE_SIGNING_ALLOWED=NO -enableCodeCoverage YES -parallel-testing-enabled NO test
 sh scripts/build_macos_app.sh
-# Phase2 dedicated lane, after implementation:
+# Build and run the isolated native-client/backend lane:
 sh scripts/test_macos_workflows.sh
+# Reuse a sidecar that was already built:
+sh scripts/test_macos_workflows.sh --no-build
+# Mac-only runner fault checks (from backend/):
+cd backend
+env -u VIRTUAL_ENV uv run python ../macos/WorkflowChecks/check_runner_failures.py
+cd ..
 git diff --check
 ```
 
-Swift6 compilation supplies native type checks; no separate native linter is
+Swift 6 compilation supplies native type checks; no separate native linter is
 configured. Report native line coverage separately; xccov has no Swift branch
-percentage here. Native whole-app coverage is not yet80%; no release claim.
-Backend source unchanged: existing full670-case verifier remains prior evidence;
+percentage here. Native whole-app coverage is not yet 80%; no release claim.
+Backend source unchanged: existing full 670-case verifier remains prior evidence;
 rerun required backend suite if an actual backend fix becomes necessary.
 
 # Risks / acceptance
@@ -120,7 +137,7 @@ rerun required backend suite if an actual backend fix becomes necessary.
 | Test fixture uses Application Support | Test-owned explicit temp path and child process; no runtime test switches |
 | Integration preparation burdens unit tests | Separate CLI lane; no new Xcode target or production test-mode hooks |
 
-- [x] Phase1 RED/GREEN, independent review, native checks/build and commit.
-- [ ] Phase2 fixture RED, real packaged workflow and cleanup verified.
-- [ ] Independent OpenCode final retest and evidence saved.
-- [ ] Feature commits and handoff; unrelated edit preserved.
+- [x] Phase 1 RED/GREEN, independent review, native checks/build and commit.
+- [x] Phase 2 fixture RED, real packaged workflow and cleanup verified.
+- [x] Independent OpenCode final retest and evidence saved.
+- [x] Feature commits and handoff prepared; unrelated edit preserved.

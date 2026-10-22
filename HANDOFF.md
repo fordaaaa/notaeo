@@ -1,6 +1,73 @@
 # HANDOFF.md
 
-## Current milestone — desktop polish review loop (2026-10-22)
+## Current milestone — duplicate safety and real native workflows (2026-10-22)
+
+The authorized desktop review/fix/retest loop is complete locally for this
+bounded milestone. Use [SPEC](docs/native-workflows/SPEC.md),
+[PLAN](docs/native-workflows/PLAN.md) and [review evidence](docs/native-workflows/REVIEW.md).
+The owner waived repeated approvals. Current delegation is through OpenCode;
+older Luna-only routing and previous milestone counts below are historical.
+
+### Shipped locally
+
+- `476277a fix: require explicit consent for duplicate pastes`: removes the
+  automatic forced retry. A snapshot/scope-aware controller and native dialog
+  require Save a copy; cancel/dismiss/account/notebook changes cannot trigger a
+  later implicit copy. Twelve new tests include async races and draft recovery.
+- The commit containing this handoff adds `scripts/test_macos_workflows.sh`:
+  build the signed app/sidecar, compile production Swift client/state sources,
+  then exercise auth, source import/read/search, duplicate consent, basic
+  revision, maps/export, ownership and token revocation against real SQLite.
+  Synthetic data only; no Keychain, real sound or AI/discovery calls.
+- Four supervisor fault cases cover missing/exited/invalid/interrupted backend
+  preparation. An actual interruption failure exposed a leaked synthetic child
+  in the first harness; it was stopped and the shell now directly owns both
+  children and removes scratch only after stopping them. Final cases all pass.
+
+### Verification and limits
+
+Full native XCTest 106/106 passes; controller line coverage 82/83 (98.80%).
+Signed arm64 sidecar/Release app build and the canonical real workflow pass.
+OpenCode independently reran that workflow and all 12 consent tests, exit 0;
+final independent code review APPROVE with zero confirmed findings. New runner
+Python checks pass Ruff/Pyright, shell syntax and whitespace checks pass.
+Native whole-app line coverage remains 1201/7008 (17.14%); Swift branch coverage
+and full GUI E2E are absent. This is not a production-ready certification.
+The prior unchanged backend's 670-case verifier remains prior evidence.
+
+The free GLM 5.3 Flash bridge model was catalog/price checked explicitly; no
+native or paid fallback. Brig `research-native-macos` was refreshed over the
+26 production Swift files. A broad coding worker timed out without edits;
+the coordinator implemented and bounded reviewers/retests completed. Full
+provenance, temporary log paths and exact commands are in REVIEW.md.
+
+No push/deployment, website/mobile/Windows work, provider/billing changes or
+private-server changes in this milestone. Preserve the preexisting unrelated
+`.serena/project.yml` edit. Rebuilt local app:
+`macos/build/Build/Products/Release/Notaeo.app` (ad-hoc signed, not notarized).
+
+### Resume / next three steps
+
+1. Try a real course in the GUI: duplicate cancel/copy, notebook/account changes,
+   complete basic practice and export. Record concrete friction; listen to the
+   opt-in chime manually. Student usefulness and polish ratings remain unvalidated.
+2. Add critical GUI interaction coverage and fix observed notebook/search
+   defects in bounded test-first commits; the whole-native coverage gap remains.
+3. Follow `docs/desktop-polish/AI_PLAN.md` for an optional grounded explanation
+   evaluation. Keep basic study useful with AI disabled; hosted parity and
+   deployment require their own scope, not public-repo credential changes.
+
+From root, `sh scripts/test_macos_workflows.sh` builds and checks the packaged
+workflow; `--no-build` reuses the existing sidecar. From `backend/`, run
+`env -u VIRTUAL_ENV uv sync` for setup and
+`env -u VIRTUAL_ENV uv run python ../macos/WorkflowChecks/check_runner_failures.py`
+for all four runner faults. Use the exact full native XCTest command in PLAN.md.
+To work next session: read the current native-workflows SPEC/PLAN/REVIEW, preserve
+the unrelated edit, confirm the bridge/catalog, run the relevant reproduction
+and implement one observed gap test-first with independent review before commit.
+Do not interpret passing CLI/API checks as GUI E2E or student validation.
+
+## Previous milestone — desktop polish review loop (2026-10-22)
 
 The owner asked to resume OpenCode testing/rating, implement fixes, improve
 logo/sounds, center a normal launch window, add loading polish and plan optional
