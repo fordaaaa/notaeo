@@ -6,6 +6,11 @@ import SwiftUI
 private final class AppDelegate: NSObject, NSApplicationDelegate {
     weak var backend: BackendProcess?
 
+    func applicationWillFinishLaunching(_ notification: Notification) {
+        guard !AppState.isTestHost() else { return }
+        MainWindowPresentation.configureLaunchPreferences(.standard)
+    }
+
     func applicationWillTerminate(_ notification: Notification) {
         backend?.stop()
     }
@@ -24,8 +29,21 @@ struct NotaeoApp: App {
     @AppStorage("notaeo.native.appearance") private var appearance = "system"
 
     var body: some Scene {
+        mainWindow
+
+        // Native Settings scene: visible via app menu + Cmd+, throughout.
+        Settings {
+            SettingsView()
+                .environmentObject(appState)
+                .preferredColorScheme(appearance == "dark" ? .dark : appearance == "light" ? .light : nil)
+                .tint(NativePalette.accent)
+        }
+    }
+
+    private var mainWindow: some Scene {
         Window("Notaeo", id: "main") {
             ContentView()
+                .background(MainWindowPlacement())
                 .preferredColorScheme(appearance == "dark" ? .dark : appearance == "light" ? .light : nil)
                 .environmentObject(backend)
                 .environmentObject(appState)
@@ -42,15 +60,7 @@ struct NotaeoApp: App {
                 }
         }
         .defaultSize(width: 1200, height: 800)
-
-        // Native Settings scene: visible via app menu + Cmd+, throughout.
-        // Available logged-out (SettingsView handles both states).
-        Settings {
-            SettingsView()
-                .environmentObject(appState)
-                .preferredColorScheme(appearance == "dark" ? .dark : appearance == "light" ? .light : nil)
-                .tint(NativePalette.accent)
-        }
+        .defaultPosition(.center)
     }
 }
 
@@ -89,7 +99,7 @@ private struct ContentView: View {
                 StartupView()
             }
         }
-        .frame(minWidth: 960, minHeight: 640)
+        .frame(minWidth: 640, minHeight: 480)
         .font(NativeType.body)
         .tint(NativePalette.accent)
         .animation(motion.animation, value: appState.isLoggedIn)
@@ -112,13 +122,39 @@ private struct ContentView: View {
     }
 }
 
-private struct StartupView: View {
+struct StartupView: View {
+    @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
+    @AppStorage private var reduceMotion: Bool
+
+    init(preferences: UserDefaults = .standard) {
+        _reduceMotion = AppStorage(wrappedValue: false, "notaeo.native.reduceMotion", store: preferences)
+    }
+
+    private var motion: NativeMotionPolicy {
+        NativeMotionPolicy(systemReduceMotion: systemReduceMotion, appReduceMotion: reduceMotion)
+    }
+
     var body: some View {
-        VStack(spacing: 20) {
-            Image(systemName: "book.closed.fill").font(.system(size: 32))
-                .foregroundStyle(NativePalette.accent).accessibilityHidden(true)
+        VStack(spacing: 18) {
+            if motion.reducesMotion {
+                NotaeoMark().frame(width: 84, height: 84)
+            } else {
+                TimelineView(.animation(minimumInterval: 1.0 / 30)) { context in
+                    NotaeoMark().frame(width: 84, height: 84)
+                        .offset(y: motion.folioLift(time: context.date.timeIntervalSinceReferenceDate))
+                }
+            }
             Text("Notaeo").font(NativeType.display)
-            NativeAIActivity(label: "Preparing your workspace…")
+            Text("Know what to study next.")
+                .font(NativeType.heading).foregroundStyle(.secondary)
+            HStack(spacing: 10) {
+                if !motion.reducesMotion { ProgressView().controlSize(.small) }
+                Text("Opening your workspace…").font(NativeType.body).foregroundStyle(.secondary)
+            }
+            .padding(.top, 14)
+            .accessibilityElement(children: .combine)
+            Text("Your sources and study tools work without AI.")
+                .font(NativeType.caption).foregroundStyle(.secondary)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(NativePalette.canvas)
