@@ -177,6 +177,8 @@ struct SourcesView: View {
     @State private var importerPresented = false
     @State private var readingId: String?
     @State private var addingSources = false
+    @StateObject private var pasteController = NativePasteController()
+    @State private var copyConfirmationPresented = false
     @AppStorage("notaeo.native.sourceSort") private var sourceSort = SourceSortOrder.newest.rawValue
     @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
     @AppStorage("notaeo.native.reduceMotion") private var reduceMotion = false
@@ -282,6 +284,15 @@ struct SourcesView: View {
                 }
             }
         }
+        .onChange(of: appState.accountToken, initial: true) { _, token in
+            pasteController.bind(accountToken: token, notebookId: notebook.id)
+            copyConfirmationPresented = false
+        }
+        .onChange(of: notebook.id) { _, id in
+            pasteController.bind(accountToken: appState.accountToken, notebookId: id)
+            copyConfirmationPresented = false
+        }
+        .onDisappear { pasteController.clear(); copyConfirmationPresented = false }
     }
 
     private var addControls: some View {
@@ -292,15 +303,15 @@ struct SourcesView: View {
                     .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(NativePalette.border))
                     .accessibilityLabel("Source text to paste")
                 HStack {
-                    Button("Save paste") { Task { await savePaste(force: false) } }.disabled(busy || pasteText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                    Button("Upload file…") { importerPresented = true }.disabled(busy)
-                    Button("Export notebook…") { Task { await export() } }.disabled(busy)
+                    Button("Save paste") { Task { await savePaste() } }.disabled(busy || pasteController.isSaving || pasteText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    Button("Upload file…") { importerPresented = true }.disabled(busy || pasteController.isSaving)
+                    Button("Export notebook…") { Task { await export() } }.disabled(busy || pasteController.isSaving)
                 }
                 HStack {
                     TextField("https://example.com/article", text: $urlText).textFieldStyle(.roundedBorder)
-                    Button("Add URL") { Task { await addURL(force: false) } }.disabled(busy || urlText.trimmingCharacters(in: .whitespaces).isEmpty)
+                    Button("Add URL") { Task { await addURL(force: false) } }.disabled(busy || pasteController.isSaving || urlText.trimmingCharacters(in: .whitespaces).isEmpty)
                 }
-                if busy { ProgressView().controlSize(.small) }
+                if busy || pasteController.isSaving { ProgressView().controlSize(.small) }
             }.font(NativeType.body).padding(.top, 10)
         }
         .font(.system(size: 14, weight: .medium))
@@ -308,6 +319,15 @@ struct SourcesView: View {
         .background(NativePalette.surface, in: RoundedRectangle(cornerRadius: 12))
         .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(NativePalette.border))
         .animation(motion.animation, value: addingSources)
+        .confirmationDialog("Save another copy?", isPresented: $copyConfirmationPresented) {
+            Button("Save a copy") { confirmPasteCopy() }
+            Button("Cancel", role: .cancel) { pasteController.cancelDuplicate() }
+        } message: {
+            Text("This material is already saved as “\(pasteController.pendingDuplicate?.title ?? "an existing source")”. Save a separate copy only if you need one.")
+        }
+        .onChange(of: copyConfirmationPresented) { _, presented in
+            if !presented { pasteController.cancelDuplicate() }
+        }
         .fileImporter(isPresented: $importerPresented, allowedContentTypes: [.pdf, .plainText, UTType(filenameExtension: "docx") ?? .data], allowsMultipleSelection: true) { result in
             Task { await upload(result) }
         }
@@ -358,25 +378,34 @@ struct SourcesView: View {
         } catch { notice = error.localizedDescription }
     }
 
-    private func savePaste(force: Bool) async {
-        guard let api = api() else { return }
-        busy = true; defer { busy = false }
-        let title = pasteTitle.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "Pasted note" : pasteTitle.trimmingCharacters(in: .whitespacesAndNewlines)
-        do {
-            let res = try await api.pasteSource(notebookId: notebook.id, title: title, text: pasteText, force: force)
-            if res.saved {
-                pasteTitle = ""; pasteText = ""
-                await reload()
-                notice = "Paste saved."
-            } else if let dup = res.duplicateOf {
-                notice = "Already saved as “\(dup.title)”. Saving again creates a copy."
-                // One-tap confirm: retry with force after warning.
-                let second = try await api.pasteSource(notebookId: notebook.id, title: title, text: pasteText, force: true)
-                if second.saved { pasteTitle = ""; pasteText = ""; await reload(); notice = "Duplicate saved as a copy." }
-            }
-        } catch {
-            notice = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
+    private func savePaste() async {
+        guard !busy, let api = api() else { return }
+        let account = appState.accountToken
+        pasteController.bind(accountToken: account, notebookId: notebook.id)
+        notice = nil
+        let saved = await pasteController.save(title: pasteTitle, text: pasteText, using: api)
+        guard account == appState.accountToken else { return }
+        if pasteController.pendingDuplicate != nil { copyConfirmationPresented = true }
+        await finishPaste(saved, account: account)
+    }
+
+    private func confirmPasteCopy() {
+        guard !busy, let api = api() else { return }
+        let account = appState.accountToken
+        pasteController.bind(accountToken: account, notebookId: notebook.id)
+        guard let operation = pasteController.confirmCopy(using: api) else { return }
+        notice = nil
+        Task { await finishPaste(operation.value, account: account) }
+    }
+
+    private func finishPaste(_ saved: NativePasteSnapshot?, account: String?) async {
+        guard account == appState.accountToken else { return }
+        if let saved {
+            if saved.matchesDraft(title: pasteTitle, text: pasteText) { pasteTitle = ""; pasteText = "" }
+            await reload()
         }
+        guard account == appState.accountToken else { return }
+        notice = pasteController.notice
     }
 
     private func addURL(force: Bool) async {
