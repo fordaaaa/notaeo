@@ -455,3 +455,31 @@ def test_locked_urllib3_excludes_known_vulnerable_releases() -> None:
     urllib3_versions = [item["version"] for item in packages if item["name"] == "urllib3"]
     assert urllib3_versions, "expected the transitive urllib3 dependency in the lock"
     assert all(Version(value) >= Version("2.8.0") for value in urllib3_versions)
+
+
+def test_locked_certifi_excludes_known_vulnerable_releases() -> None:
+    """Keep the resolved trust bundle at or beyond its audited fix version."""
+    from packaging.version import Version
+
+    lock = tomllib.loads((_backend_dir() / "uv.lock").read_text())
+    packages = lock["package"]
+    certifi_versions = [item["version"] for item in packages if item["name"] == "certifi"]
+    assert certifi_versions, "expected certifi in the lock"
+    assert all(Version(value) >= Version("2026.10.19") for value in certifi_versions)
+
+
+def test_certifi_ssl_trust_store_excludes_compromised_em_sign_root() -> None:
+    """The real certifi bundle must not trust the affected emSign root."""
+    import ssl
+
+    import certifi
+
+    context = ssl.create_default_context(cafile=certifi.where())
+    common_names = {
+        value
+        for certificate in context.get_ca_certs()
+        for relative_distinguished_name in certificate["subject"]
+        for attribute, value in relative_distinguished_name
+        if attribute == "commonName"
+    }
+    assert "emSign ECC Root CA - G3" not in common_names
