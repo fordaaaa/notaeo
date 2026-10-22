@@ -56,7 +56,7 @@ calendar integration. No claim of Windows runtime verification from macOS.
 | --- | --- |
 | Independent functional baseline and verified findings | Complete;68 backend cases passed, model findings checked against actual source |
 | Predictable native launch and understandable startup | Complete locally;87 native tests, signed build and independent approval; relaunch/fullscreen owner trial pending |
-| Original identity and controllable cozy feedback | Pending |
+| Original identity and controllable cozy feedback | Complete locally;12 new native cases, generated/packaged icon consistency, silent test playback; listening preference pending |
 | Reviewed candidate, remaining trial checklist and AI roadmap | Pending |
 
 ## Open questions and risks

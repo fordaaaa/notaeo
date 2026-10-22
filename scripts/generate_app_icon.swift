@@ -20,34 +20,37 @@ for size in [16, 32, 64, 128, 256, 512, 1024] {
         space: CGColorSpaceCreateDeviceRGB(),
         bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
     )!
-    context.scaleBy(x: CGFloat(size) / 64, y: CGFloat(size) / 64)
-    context.setFillColor(color(0x06303e))
-    context.addPath(CGPath(roundedRect: CGRect(x: 0, y: 0, width: 64, height: 64), cornerWidth: 15, cornerHeight: 15, transform: nil))
-    context.fillPath()
+    // Normalized, top-left coordinates match NativePresentation.NotaeoMark.
+    context.scaleBy(x: CGFloat(size), y: CGFloat(size))
+    context.translateBy(x: 0, y: 1)
+    context.scaleBy(x: 1, y: -1)
+    context.saveGState()
+    context.addPath(CGPath(roundedRect: CGRect(x: 0, y: 0, width: 1, height: 1),
+                           cornerWidth: 0.24, cornerHeight: 0.24, transform: nil))
+    context.clip()
+    let gradient = CGGradient(colorsSpace: CGColorSpaceCreateDeviceRGB(),
+                              colors: [color(0x1F574D), color(0x0D332E)] as CFArray,
+                              locations: [0, 1])!
+    context.drawLinearGradient(gradient, start: .zero, end: CGPoint(x: 1, y: 1), options: [])
+    context.restoreGState()
 
-    let left = CGMutablePath()
-    left.move(to: CGPoint(x: 11, y: 47))
-    left.addCurve(to: CGPoint(x: 32, y: 45), control1: CGPoint(x: 19, y: 50), control2: CGPoint(x: 26, y: 49))
-    left.addLine(to: CGPoint(x: 32, y: 17))
-    left.addCurve(to: CGPoint(x: 11, y: 19), control1: CGPoint(x: 26, y: 21), control2: CGPoint(x: 19, y: 22))
-    left.closeSubpath()
-    let right = CGMutablePath()
-    right.move(to: CGPoint(x: 53, y: 47))
-    right.addCurve(to: CGPoint(x: 32, y: 45), control1: CGPoint(x: 45, y: 50), control2: CGPoint(x: 38, y: 49))
-    right.addLine(to: CGPoint(x: 32, y: 17))
-    right.addCurve(to: CGPoint(x: 53, y: 19), control1: CGPoint(x: 38, y: 21), control2: CGPoint(x: 45, y: 22))
-    right.closeSubpath()
-    context.setFillColor(color(0xf2faf8))
-    context.addPath(left)
-    context.addPath(right)
+    let ribbon = CGMutablePath()
+    let points: [CGPoint] = [(0.22, 0.76), (0.22, 0.24), (0.36, 0.24),
+                             (0.64, 0.59), (0.64, 0.24), (0.78, 0.24),
+                             (0.78, 0.76), (0.64, 0.76), (0.36, 0.41),
+                             (0.36, 0.76)].map { CGPoint(x: $0.0, y: $0.1) }
+    ribbon.addLines(between: points)
+    ribbon.closeSubpath()
+    context.setFillColor(color(0xF7F0D9))
+    context.addPath(ribbon)
     context.fillPath()
-    context.setStrokeColor(color(0x0a5f57))
-    context.setLineWidth(2)
-    context.move(to: CGPoint(x: 32, y: 45))
-    context.addLine(to: CGPoint(x: 32, y: 17))
+    context.setStrokeColor(CGColor(red: 0, green: 0, blue: 0, alpha: 0.10))
+    context.setLineWidth(0.025)
+    context.move(to: CGPoint(x: 0.28, y: 0.24))
+    context.addLine(to: CGPoint(x: 0.72, y: 0.76))
     context.strokePath()
-    context.setFillColor(color(0x19b8a6))
-    context.fillEllipse(in: CGRect(x: 38, y: 31, width: 10, height: 10))
+    context.setFillColor(color(0xD4AD61))
+    context.fillEllipse(in: CGRect(x: 0.7425, y: 0.1625, width: 0.075, height: 0.075))
 
     let bitmap = NSBitmapImageRep(cgImage: context.makeImage()!)
     try bitmap.representation(using: .png, properties: [:])!.write(to: output.appending(path: "icon-\(size).png"))

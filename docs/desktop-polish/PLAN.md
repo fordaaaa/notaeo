@@ -84,6 +84,25 @@ preferences and an isolated AppStorage suite for the render test.
 Goal: recognizable original branding and controllable, quiet completion feedback.
 Depends on Phase1 native helper/registration.
 
+Complete: sound/export helper acceptance tests first failed for missing APIs;
+packaged icon consistency failed on the previous book icon. Final94/94 native
+tests pass, including the actual test-host main window and read-only rendered
+startup. OpenCode independently reran all12 new cases:12/12 pass. New helper
+line coverage171/176 (97.16%); ResearchApp remains215/254 (84.65%). Swift branch
+coverage is unavailable in xccov. Full native app coverage is1119/6871 (16.29%),
+with MainView0/1055 and SettingsView10/274; those legacy UI workflows are not
+exercised by unit tests. Do not claim the whole native app meets80% coverage or
+that dialogs/export clicks are E2E-tested. The real temporary-file save helper
+is tested for success/failure/mute; physical playback is never called by tests.
+The rebuilt arm64 sidecar/Release app and ad-hoc signature pass. Generator
+output inspected at512px; packaged icon matches the startup mark in a separate
+consistency test. Fresh GLM OpenCode helper and UI/generator/AI-plan reviews:
+APPROVE, zero unresolved findings. Evidence `/tmp/notaeo-desktop-feedback-*`,
+`-icon-red.log`, `-export-feedback-red.log`, `-actual-window.log` and
+`/tmp/notaeo-opencode-native-retest-final.log`.
+Learned: test the successful write before emitting completion feedback, and
+compare compiled icon assets with the native identity to catch stale branding.
+
 1. Action RED: test original offline PCM duration/amplitude, smooth silent edges,
    deterministic output and injected playback gate (muted/test host=no playback,
    preview explicit, opted-in completion plays). No physical audio from tests.
@@ -141,6 +160,6 @@ No Windows runtime/build result is claimed on this host.
 
 - [x] Grounded plan reviewed; no repeated owner approval required.
 - [x] Phase1 meaningful RED/GREEN, native checks/build and review.
-- [ ] Phase2 meaningful RED/GREEN, asset inspection, native checks/build and review.
+- [x] Phase2 meaningful RED/GREEN, asset inspection, native checks/build and review.
 - [ ] Functional review/retest and AI plan saved.
 - [ ] Separate feature commits and handoff; public preexisting edit preserved.

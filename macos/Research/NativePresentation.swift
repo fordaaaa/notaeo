@@ -88,3 +88,86 @@ private struct FolioRibbon: Shape {
         return Path { path in path.addLines(points); path.closeSubpath() }
     }
 }
+
+enum CozyChime {
+    static let sampleRate = 44_100
+    static let samples: [Float] = {
+        let count = Int(Double(sampleRate) * 0.52)
+        var result = [Float](repeating: 0, count: count)
+        func note(_ time: Double, frequency: Double, start: Double, length: Double) -> Double {
+            let local = time - start
+            guard local > 0, local < length else { return 0 }
+            let attack = min(1, local / 0.022)
+            let release = min(1, (length - local) / 0.060)
+            let envelope = attack * attack * (3 - 2 * attack)
+                * release * release * (3 - 2 * release) * exp(-7 * local)
+            let phase = 2 * Double.pi * frequency * local
+            return envelope * (sin(phase) + 0.12 * sin(2 * phase))
+        }
+        for index in 1..<(count - 1) {
+            let time = Double(index) / Double(sampleRate)
+            result[index] = Float(0.10 * note(time, frequency: 261.626, start: 0, length: 0.39)
+                                 + 0.085 * note(time, frequency: 329.628, start: 0.09, length: 0.43))
+        }
+        return result
+    }()
+
+    static let waveData: Data = {
+        var data = Data()
+        func append<T: FixedWidthInteger>(_ value: T) {
+            var littleEndian = value.littleEndian
+            withUnsafeBytes(of: &littleEndian) { data.append(contentsOf: $0) }
+        }
+        let size = UInt32(samples.count * 2)
+        data.append(contentsOf: "RIFF".utf8); append(UInt32(36) + size)
+        data.append(contentsOf: "WAVEfmt ".utf8); append(UInt32(16))
+        append(UInt16(1)); append(UInt16(1)); append(UInt32(sampleRate))
+        append(UInt32(sampleRate * 2)); append(UInt16(2)); append(UInt16(16))
+        data.append(contentsOf: "data".utf8); append(size)
+        for sample in samples { append(Int16((sample * Float(Int16.max)).rounded())) }
+        return data
+    }()
+}
+
+@MainActor
+final class NativeFeedback {
+    static let preferenceKey = "notaeo.native.soundEnabled"
+    static let shared = NativeFeedback()
+
+    private let preferences: UserDefaults
+    private let isTestHost: Bool
+    private let playback: ((Data) -> Void)?
+    private var sound: NSSound?
+
+    init(preferences: UserDefaults = .standard, isTestHost: Bool = AppState.isTestHost(),
+         playback: ((Data) -> Void)? = nil) {
+        self.preferences = preferences
+        self.isTestHost = isTestHost
+        self.playback = playback
+    }
+
+    func success() { play(explicitPreview: false) }
+    func preview() { play(explicitPreview: true) }
+
+    func saveExport(_ data: Data, to url: URL) throws {
+        try data.write(to: url, options: .atomic)
+        success()
+    }
+
+    func stop() {
+        sound?.stop()
+        sound = nil
+    }
+
+    private func play(explicitPreview: Bool) {
+        guard !isTestHost, explicitPreview || preferences.bool(forKey: Self.preferenceKey) else { return }
+        stop()
+        if let playback {
+            playback(CozyChime.waveData)
+        } else {
+            sound = NSSound(data: CozyChime.waveData)
+            sound?.volume = 0.6
+            sound?.play()
+        }
+    }
+}

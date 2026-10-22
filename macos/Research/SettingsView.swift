@@ -11,6 +11,7 @@ struct SettingsView: View {
     @State private var message: String?
     @AppStorage("notaeo.native.appearance") private var appearance = "system"
     @AppStorage("notaeo.native.reduceMotion") private var appReduceMotion = false
+    @AppStorage("notaeo.native.soundEnabled") private var soundEnabled = false
     @State private var previewing = false
     @State private var previewTask: Task<Void, Never>?
 
@@ -42,6 +43,15 @@ struct SettingsView: View {
                         .transition(motion.transition)
                 }
                 Text("The preview runs locally for three seconds.").font(NativeType.caption).foregroundStyle(.secondary)
+            }
+            Section("Sound") {
+                Toggle("Gentle completion sounds", isOn: $soundEnabled)
+                    .onChange(of: soundEnabled) { _, enabled in
+                        if !enabled { NativeFeedback.shared.stop() }
+                    }
+                Button("Preview cozy chime") { NativeFeedback.shared.preview() }
+                Text("A quiet cue after saving an export. Preview plays once, even with completion sounds off.")
+                    .font(NativeType.caption).foregroundStyle(.secondary)
             }
             Section("Account") {
                 if let email = appState.userEmail, appState.isLoggedIn {

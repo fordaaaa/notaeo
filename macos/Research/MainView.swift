@@ -353,7 +353,7 @@ struct SourcesView: View {
             panel.allowedContentTypes = [.zip]
             panel.nameFieldStringValue = DownloadHandler.sanitizedExportFilename(notebook.name + ".zip", fallback: "notebook.zip")
             guard await panel.begin() == .OK, let url = panel.url else { return }
-            try data.write(to: url, options: .atomic)
+            try NativeFeedback.shared.saveExport(data, to: url)
             notice = "Notebook exported."
         } catch { notice = error.localizedDescription }
     }
