@@ -1,5 +1,34 @@
 # HANDOFF.md
 
+## Next product milestone — connected student workspace (2026-10-22)
+
+Latest owner feedback: both mobile and macOS are bare bones. The desired product
+combines engaging Gizmo-like study with an organized coursework workspace for
+planning, alerts, citations and papers. Read [PRODUCT](docs/PRODUCT.md) and
+[the grounded direction](docs/STUDENT_WORKSPACE.md). This expands exam-coach-only
+positioning; it does not restore a website, require AI or remove release gates.
+
+Planning only in this update: no app redesign has been implemented. The next
+visible milestone is Today plus connected course/material/assignment navigation
+on both clients, with due review directly reachable. Existing backend classes,
+assignments, dashboard/calendar, notes and outlines provide foundations currently
+poorly exposed by the clients. Formal bibliographies, paper writing and native
+reminders are substantial missing work, not capabilities already shipped.
+
+Investigate before wiring: dashboard/calendar exclude overdue assignments and
+bucket server/UTC days; class and notebook are distinct; assignment notebook-link
+ownership must be proven. Do not assume dashboard data powers overdue work or
+rename all notebooks to courses. Source references are not APA/MLA bibliographies.
+Use the owner waiver of repeated approvals; develop bounded specs/plans and real
+connected interactions, not another isolated test/polish milestone. Independent
+OpenCode product critique informed this direction, not student validation.
+
+The latest mobile work is committed in `research-mobile` as `5f88dfa`, `98ec6e6`
+and `930a9ba`. Its HANDOFF.md records the running Expo Go preview, 189 unit tests,
+22 browser-profile interface checks, a real backend workflow, 50% whole-app line
+coverage and remaining release risks. Those fixes do not establish a compelling
+mobile product. Preserve the unrelated `.serena/project.yml` edit in this repo.
+
 ## Current milestone — duplicate safety and real native workflows (2026-10-22)
 
 The authorized desktop review/fix/retest loop is complete locally for this

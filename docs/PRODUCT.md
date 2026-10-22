@@ -11,11 +11,25 @@ read them in-app, research the public web, and study with flashcards,
 one-page guides, and mind maps. Self-hosting stays $0 — a SQLite file, no
 paid service.
 
-## Student workflow to build next
+## Student workspace direction
+
+Owner update, 2026-10-22: Notaeo should combine engaging study with an organized
+student workspace: coursework, planning/calendar, alerts, citations and paper
+writing. Both current native apps feel too bare bones. This expands the earlier
+exam-coach positioning; exam coaching remains a core workflow within the product.
+See [the grounded workspace direction and first visible milestone](STUDENT_WORKSPACE.md).
+The first product milestone is Today and a connected course/material workspace,
+using existing dashboard/classes/assignment/review foundations while validating
+their date and ownership contracts. Stronger study, writing/citations and real
+reminders follow as connected workflows. These surfaces are proposed, not shipped.
+Do not count existing backend endpoints or reliability checks as a complete app.
+
+## Existing exam-coach foundation
 
 Owner update, 2026-10-08: **Exam coach — turn course material into
-explanations, practice, and a revision plan.** This supersedes the earlier
-evidence-capture → essay-workspace → planning milestone order. The immediate
+explanations, practice, and a revision plan.** At that time this superseded the
+earlier evidence-capture → essay-workspace → planning milestone order. The
+2026-10-22 workspace direction above now leads delivery. The immediate
 need is: "My exam is coming up; what do I need to understand and revise next?"
 
 The product helps students organise course material and revise without relying
@@ -29,7 +43,8 @@ next session. AI practice and explanations are optional and fall back to
 basic practice when unavailable or when their source evidence is invalid.
 AI inference quality and student usefulness still require evaluation.
 
-Build on the first loop in this order:
+Within the study workflow, build on the first loop in this order. The broader
+workspace milestone above now leads product delivery:
 
 1. **Useful explanations:** select evidence for the question, link answers to
    source pages, and evaluate unsupported/absent answers before expanding AI
