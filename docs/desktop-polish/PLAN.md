@@ -49,7 +49,7 @@ Riskiest phase first: restoration and lifecycle behavior.
 
 Complete: missing placement/motion helpers and launch-preference hook were RED
 in the new acceptance tests. Final native XCTest87/87 passes. NativePresentation
-line coverage98/99 (98.99%); ResearchApp215/254 (84.65%). Xcode's report does not
+line coverage98/99 (98.99%); ResearchApp 215/254 (84.65%). Xcode's report does not
 provide Swift branch coverage; no branch-floor claim is made. Full arm64 sidecar,
 Release app build and ad-hoc signature verification pass. Offline reduced-motion
 startup render inspected at `/tmp/notaeo-startup-preview.png`. Fresh independent
@@ -67,7 +67,7 @@ preferences and an isolated AppStorage suite for the render test.
 2. Action GREEN: add a main-window-only attachment bridge that applies placement
    once, disables restoration for that window, and never moves Settings/user
    changes. Use screen visibleFrame, not an assumed zero-origin screen. Honor
-   macOS14 availability. Set the app's NSQuitAlwaysKeepsWindows preference false
+   macOS 14 availability. Set the app's NSQuitAlwaysKeepsWindows preference false
    before restoring windows, and disable restoration on the attached window.
    SwiftUI SceneBuilder cannot express the required availability if/else for
    restorationBehavior; do not raise the OS floor or use private APIs instead.
@@ -82,16 +82,16 @@ preferences and an isolated AppStorage suite for the render test.
 ## Phase 2 — Identity and cozy feedback (Medium, estimate 2–4h)
 
 Goal: recognizable original branding and controllable, quiet completion feedback.
-Depends on Phase1 native helper/registration.
+Depends on Phase 1 native helper/registration.
 
 Complete: sound/export helper acceptance tests first failed for missing APIs;
-packaged icon consistency failed on the previous book icon. Final94/94 native
+packaged icon consistency failed on the previous book icon. Final 94/94 native
 tests pass, including the actual test-host main window and read-only rendered
-startup. OpenCode independently reran all12 new cases:12/12 pass. New helper
-line coverage171/176 (97.16%); ResearchApp remains215/254 (84.65%). Swift branch
+startup. OpenCode independently reran all 12 new cases:12/12 pass. New helper
+line coverage 171/176 (97.16%); ResearchApp remains215/254 (84.65%). Swift branch
 coverage is unavailable in xccov. Full native app coverage is1119/6871 (16.29%),
-with MainView0/1055 and SettingsView10/274; those legacy UI workflows are not
-exercised by unit tests. Do not claim the whole native app meets80% coverage or
+with MainView 0/1055 and SettingsView 10/274; those legacy UI workflows are not
+exercised by unit tests. Do not claim the whole native app meets 80% coverage or
 that dialogs/export clicks are E2E-tested. The real temporary-file save helper
 is tested for success/failure/mute; physical playback is never called by tests.
 The rebuilt arm64 sidecar/Release app and ad-hoc signature pass. Generator
@@ -120,6 +120,17 @@ compare compiled icon assets with the native identity to catch stale branding.
 
 Goal: actionable evidence and a bounded optional-AI roadmap.
 
+Complete: verified OpenCode baseline 68 cases; independent final12-case native
+retest; coordinator full 94-case native and 670-case backend gates. Model ratings
+remain provisional (polish 7), unvalidated by human trials. AI_PLAN defines binary
+fixture/evidence/fallback/native/hosted acceptance gates without invented usage,
+latency or student outcome targets. Independent UI/generator/AI-plan review
+APPROVE, zero findings. REVIEW/HANDOFF record filtered model findings, coverage
+limitations, license references and owner trial. AGENTS now checks the actual
+CLI catalog instead of trusting the static free list; free-model retirement is
+explicit. Learned: a successful model-list tool is not proof its recommended
+model exists, and passing unit tests is not an increase in perceived polish.
+
 1. Action: record OpenCode's actual68-test baseline and provisional ratings;
    verify findings before accepting them. Reject nonexistent paths and the
    incorrect draft-leak finding (keys already include session and task IDs).
@@ -143,7 +154,7 @@ cd backend
 env -u VIRTUAL_ENV uv run scripts/verify.py
 ```
 
-Native code has no configured separate lint/typecheck command; Swift6 compilation
+Native code has no configured separate lint/typecheck command; Swift 6 compilation
 is the type check. Native coverage and UI trial evidence must be reported
 separately from backend coverage; do not substitute Python tests for native UX.
 No Windows runtime/build result is claimed on this host.
@@ -159,7 +170,7 @@ No Windows runtime/build result is claimed on this host.
 | Asset license confusion | Original brand/chime; external projects are documented candidates only |
 
 - [x] Grounded plan reviewed; no repeated owner approval required.
-- [x] Phase1 meaningful RED/GREEN, native checks/build and review.
-- [x] Phase2 meaningful RED/GREEN, asset inspection, native checks/build and review.
-- [ ] Functional review/retest and AI plan saved.
-- [ ] Separate feature commits and handoff; public preexisting edit preserved.
+- [x] Phase 1 meaningful RED/GREEN, native checks/build and review.
+- [x] Phase 2 meaningful RED/GREEN, asset inspection, native checks/build and review.
+- [x] Functional review/retest and AI plan saved.
+- [x] Separate feature commits and handoff; public preexisting edit preserved.

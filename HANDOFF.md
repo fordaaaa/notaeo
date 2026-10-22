@@ -1,5 +1,118 @@
 # HANDOFF.md
 
+## Current milestone — desktop polish review loop (2026-10-22)
+
+The owner asked to resume OpenCode testing/rating, implement fixes, improve
+logo/sounds, center a normal launch window, add loading polish and plan optional
+AI. The owner previously waived repeated approvals. This bounded iteration is
+complete locally; the older backend/Luna-only routing notes below are historical.
+Use the current [desktop SPEC](docs/desktop-polish/SPEC.md),
+[PLAN](docs/desktop-polish/PLAN.md), [review evidence](docs/desktop-polish/REVIEW.md)
+and [AI plan](docs/desktop-polish/AI_PLAN.md).
+
+### What changed
+
+- `f1bc878 feat: center native launch and add folio startup`: main-only,
+  once-per-window placement in the screen visibleFrame; normal launch preference
+  and nonrestorable window; preserve later movement/Settings. Original folio/N
+  startup with actual backend lifecycle status, no AI request/fake percentage or
+  minimum delay, and static reduced-motion rendering.
+- `ef795a6 feat: polish native identity and completion feedback`: matching
+  original generated app icons, offline 0.52s C4/E4 cozy cue, native Settings
+  opt-in/default-off and explicit preview. Export feedback follows a successful
+  atomic file write; cancellation/failure/mute stays silent. Tests inject a
+  playback callback and never physically play sound. No startup audio.
+- This documentation commit saves reviewed evidence, an optional-AI roadmap
+  and the corrected bridge catalog check/default in AGENTS.md. No bridge source
+  change, provider setting or paid fallback was introduced. The bridge rebuild
+  created no tracked cline changes from this work.
+
+### Bridge recovery and review provenance
+
+Client restart alone did not resolve the retired Muse model. The bridge built
+and started successfully, and MCP configuration points at the expected dist
+entry point. Actual CLI stderr identified ProviderModelNotFoundError; the
+free-only bridge list is hard-coded. Verify health with the actual CLI catalog
+(`freeOnly=false`) as well. Explicit current zero-price free bridge models used:
+Nemotron 3 Ultra for baseline, Big Pickle for launch review/retest, GLM 5.3 Flash for
+bounded final reviews/retest. No native coding agents or paid model substitution.
+Current recommended default is catalog-checked GLM free; stale-model recovery
+is documented without weakening the real missing-bridge stop gate.
+
+Baseline OpenCode ran 68 backend cases successfully and provisionally rated
+usefulness 8/coherence 8/polish 7/trust 8 out of 10. The coordinator checked actual
+session tool output and rejected unsupported findings, including a claimed
+answer-draft leak (keys already include session and task). Review is not student
+validation. After fixes, OpenCode held polish at7/10 because no listening or
+hands-on usability trial establishes improvement yet.
+
+### Checks and limits
+
+- Full native XCTest 94/94 pass. OpenCode independently reran all 12 new cases:
+  7 presentation + 5 feedback, zero failures. The actual test-host main app window
+  is centered, windowed and inside its current screen; snapshot renders offline.
+- Full arm64 sidecar/Release build and ad-hoc app signature checks pass. Rebuilt
+  app: `macos/build/Build/Products/Release/Notaeo.app` (local, not notarized).
+- Full backend verifier exits0: build/types/lint/security pass,670 tests,
+  combined 88.93% coverage (91.34%lines/81.14%branches). Backend source unchanged;
+  its earlier four-file diff snapshot is not the final native diff count.
+- NativePresentation helper 171/176 lines 97.16%; ResearchApp 215/254 (84.65%).
+  Full native app 1119/6871 lines 16.29%, MainView 0/1055, SettingsView 10/274.
+  xccov supplies no Swift branch percentage here. Native whole-app coverage
+  and critical interaction E2E remain below the owner's requested gate.
+- Independent final launch/helper/UI/generator/AI-plan reviews approve with
+  zero unresolved findings. Timed-out reviewers are not recorded as approvals.
+  GitHub license references are saved in REVIEW.md; no third-party assets were
+  bundled. The mark/chime are original reproducible code-native assets.
+
+Evidence `/tmp/notaeo-desktop-*` includes placement/restoration/feedback/icon/
+export RED logs, full native GREEN, image/coverage JSON and signed build logs.
+`/tmp/notaeo-opencode-native-retest-final.log`:12/12 pass.
+`/tmp/notaeo-desktop-backend-gate.log`: backend 670-case verification report.
+Preview PNG `/tmp/notaeo-startup-preview.png`; optional listenable sample
+`/tmp/notaeo-cozy-chime.wav` (not played by the agent). Temporary evidence is
+local and is not a durable release artifact.
+
+Local feature checks are green; **public production release is NO-GO**. Native
+UI coverage/branch evidence, critical-flow GUI trials, fullscreen/multi-monitor
+relaunch, physical listening, Windows packaging/runtime, notarization and hosted
+operations remain separate gates. No deploy, push, private-server/mobile change,
+real user-data operation or actual AI inference occurred. Preserve the existing
+`.serena/project.yml` edit; it stays outside these commits.
+
+### Next three steps and resume
+
+1. Run the owner trial in REVIEW.md with a disposable course account: relaunch,
+   move/resize/Settings, preview/opt-in/export/cancel/mute, then import/search/
+   coach/self-rating/export. Record observed friction and preference.
+2. Add a bounded native critical-flow test phase and improve measured UI coverage;
+   verify Windows on Windows and macOS 14/fullscreen/multiple displays on hosts
+   that exercise those paths. Do not substitute API/logic tests for GUI use.
+3. Start AI_PLAN Phase A with synthetic course/evidence fixtures, then ground a
+   Phase B contract plan in the existing coach API/client and selectively verify
+   hosted parity. No personal keys, local LLMs, paid provider, invented allowance,
+   automatic inference, grading or mastery scores. Quality/capacity targets TBD.
+
+Resume from root with git status/log and the four desktop docs. Native tests:
+
+```sh
+DEVELOPER_DIR=/Applications/Xcode-26.3.0.app/Contents/Developer xcodebuild -project macos/Research.xcodeproj -scheme Research -configuration Debug -derivedDataPath /tmp/notaeo-desktop-tests -destination 'platform=macOS,arch=arm64' CODE_SIGNING_ALLOWED=NO -enableCodeCoverage YES -parallel-testing-enabled NO test
+sh scripts/build_macos_app.sh
+# backend; never system python3 or --active
+cd backend
+env -u VIRTUAL_ENV uv run scripts/verify.py
+```
+
+Use Brig index `research-native-macos` for `macos/Research` source, not generated
+build files. A future agent can start from the clean feature commits, preserve
+the unrelated public edit, use functioning catalog-verified free OpenCode review
+workers, run meaningful tests before code changes and retain actual evidence.
+The next step is a concrete native-flow/fixture increment, not a fresh interview
+or another approval prompt. Backend and hosted handoffs remain separately scoped.
+
+## Historical backend milestone and earlier context
+
+
 Updated 2026-10-22. Branch `main`; installed native macOS and Windows apps
 are the priority. The website, browser frontend and static serving were
 removed from both public and hosted repositories on 2026-10-07. Mobile lives
