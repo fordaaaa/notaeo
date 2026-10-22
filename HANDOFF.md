@@ -1,18 +1,104 @@
 # HANDOFF.md
 
-Updated 2026-10-17. Branch `main`; installed native macOS and Windows apps
+Updated 2026-10-22. Branch `main`; installed native macOS and Windows apps
 are the priority. The website, browser frontend and static serving were
 removed from both public and hosted repositories on 2026-10-07. Mobile lives
 in `research-mobile`; its bounded Settings/coach pass is active.
 
-## Current work: Phase 2 verifier — complete, gate green
+## Current milestone: Phase 2b trust-store fix and Phase 3 verifier guide complete
+
+Owner approved `Yes—implement Phase 3`, then separately approved Phase 2b with
+`you can implent`, both on 2026-10-22. Neither needs reapproval. This milestone
+covers the certifi-only patch, regression tests, rebuild/verification, verifier
+guide, release assessment and reviewed handoff. No deployment. Existing native
+Luna-low identities provided test authoring and independent reviews, with no
+OpenCode agents. The required bridge health check passed. Brig backend context
+was refreshed; conversation decisions remain in SPEC/PLAN/HANDOFF.
+
+Actual command from backend, `uv run scripts/verify.py`, exits 0:
+
+VERIFICATION REPORT — Build: PASS, Types: PASS (0), Lint: PASS (0), Tests: PASS (670/670, 88.93%), Security: PASS (0), Diff: (10 files). Overall: READY. Issues to fix (numbered).
+
+1. No blocking issue in the approved backend change. That pre-commit snapshot
+   counts nine intended files plus unrelated preexisting `.serena/project.yml`,
+   which remains outside our commits. It is not a post-commit diff count.
+2. Public application release remains NO-GO: native critical-flow/clean-machine
+   runtime tests, Windows packaging/runtime, migration-recovery evidence,
+   notarization and hosted monitoring/operations are separate unfinished gates.
+
+Phase 2b fixes PYSEC-2026-4320 / GHSA-6q48-6c7w-9gw2 by updating certifi
+2026.7.22 → 2026.10.19. Before the patch, new lock-floor and actual SSL trust-store
+regressions produced 2 failed / 21 passed. Afterward all 23 configuration tests
+pass. Only certifi changes in the complete resolved lock metadata and installed
+package maps. `uv sync --locked --inexact` preserved unrelated installed tools.
+HTTPS verification stays enabled; no application source, data or schema changed.
+Fresh strict pip-audit checks 85 packages with zero vulnerabilities; scoped
+source scan is clean. No exposure/interception evidence or secret-rotation need.
+
+The full application coverage scope still contains all 51 API/core modules:
+5845/6399 lines (91.34%), 1605/1978 branches (81.14%), combined 88.93%; 22 old
+excluded lines, no new exclusions/suppressions. The touched configuration-test
+scaffold is separately 293/300 lines (97.67%), 42/52 branches (80.77%), with no
+exclusions. Type/lint checks pass. No test deleted, disabled or skipped.
+
+Full `sh scripts/build_macos_app.sh` exits 0 after the update: arm64 sidecar,
+Release app and ad-hoc signature checks pass. The actual development, rebuilt
+sidecar and app certificate PEMs share SHA256
+`50f79f98dac192b20dbf73f35c56f0b0c557ab267ff5199d1117cc1180b70785` and
+120 roots. Host Python SSLContext loads each file: compromised emSign ECC Root
+CA - G3 absent, CERT_REQUIRED and hostname checks enabled. This inspects real
+packaged files; it does not exercise TLS through a running sidecar or establish
+native runtime E2E. .NET/PowerShell and the old temporary SDK remain absent.
+
+Evidence logs: `/tmp/notaeo-phase2b-red.log`, `-green.log`, `-types.log`,
+`-lint.log`, `-config-coverage.log`, `-final-gate.log`, `-audit.log`,
+`-macos-build.log`, `-bundle-check.log` (all use the `notaeo-phase2b` prefix).
+Ignored `backend/build/verification/` snapshots: `phase2b-final-coverage.json`,
+`phase2b-config-coverage.json`, `phase2b-final-audit.json`,
+`phase2b-bundle-check.json`. A read-only observer preserved full coverage before
+per-run cleanup; the CLI itself leaves no export copy. Initial failed October
+22 evidence remains in `phase3-current-*` logs/JSON; it is superseded by this
+final gate. Earlier October 17 clean results below remain historical.
+
+Phase 2b files: `backend/uv.lock`,
+`backend/tests/platform/test_verification_configuration.py`. Phase 3 files:
+new `docs/VERIFICATION.md`, README link, corrected macOS distribution guide,
+development-loop routing/unknown convention, SPEC/PLAN/HANDOFF. Docs checks
+include whitespace, local Markdown links and command/status consistency.
+Independent Luna code review approves the lock/tests; scoped security review
+approves the final gate/audit/bundle evidence with zero CRITICAL/HIGH/MEDIUM/LOW
+findings and no rotation requirement. Final docs status reconciliation passed
+independent review; its MEDIUM stale-status and LOW scope-wording findings are
+resolved, final APPROVE with zero unresolved findings. Certificate fix committed
+as `620ca68 fix: remove compromised certificate trust bundle`; the separate
+documentation commit is identified by `git log`. Public research only; no push/deployment,
+private-server, mobile or native UI changes. Preserve `.serena/project.yml`.
+
+Next three steps: (1) manually try the rebuilt native macOS app with synthetic
+course material; (2) plan a bounded native critical-flow/E2E phase with explicit
+approval and Windows evidence on an appropriate host; (3) select the next
+student-facing feature using actual trial observations. Hosted operations and
+migration recovery need their own owners/evidence; no release approval inferred.
+
+Resume from root: `git status --short`, `git log -3 --oneline`, then read
+SPEC.md, PLAN.md Phases 2b/3 and docs/VERIFICATION.md. Setup from backend:
+`uv sync --locked --inexact`. Targeted tests: `uv run pytest
+tests/platform/test_verification_configuration.py -q`; full gate:
+`uv run scripts/verify.py`; development API: `uv run uvicorn api.main:app
+--reload --no-proxy-headers`. Root native build: `sh scripts/build_macos_app.sh`;
+manual launch: `open macos/build/Build/Products/Release/Notaeo.app`. Never use
+system python3 or real student data for tests. Learned: fresh advisories expire
+old passes, and patched Python environments do not update already-built apps.
+
+## Historical completion: Phase 2 verifier — gate green on 2026-10-17
 
 Owner approved `Yes—implement Phase 2` on 2026-10-16 and requested six native
 Luna workers at low reasoning, with no OpenCode agents. Used exactly six in two
 waves: core/CLI/security test authors, then three matching implementers. Root
 passed the existing bridge startup health check without invoking OpenCode
 agents; the explicit session routing override supersedes the delegation
-preference. Do not ask for Phase 2 approval again. Phase 3 remains unapproved.
+preference. Phase 2 needs no reapproval. At that time Phase 3 was unapproved;
+it was subsequently approved as recorded above.
 
 Three new production files: `backend/core/verification.py`,
 `backend/core/verification_security.py`, `backend/scripts/verify.py`. Tests:
@@ -86,7 +172,7 @@ Next three steps: (1) use the verifier on the next approved change;
 (2) select the next desktop/product priority or explicitly approve PLAN.md
 Phase 3 if its documentation/release work is desired; (3) validate native
 critical flows on actual platforms before any application-release claim.
-Phase 2 needs no reapproval. Keep Phase 3 pending; do not infer deployment
+These were the next actions on October 17; the current scope is above. Do not infer deployment
 authorization from passing local checks.
 
 Resume from `git status --short`, read PLAN.md Phase 2 and these new files, then
@@ -140,7 +226,7 @@ At Phase 1b completion the next three steps were: (1) owner manually tests the r
 explicitly approve PLAN.md Phase 2 if the automated verifier is desired;
 (3) implement only that approved phase with RED/GREEN, independent OpenCode
 review and the full gate. Phase 2 was subsequently approved/completed above;
-Phase 3 remains pending. Local
+Phase 3 was pending at that historical checkpoint. Local
 patch readiness is separate from application release: native critical-flow E2E,
 Windows runtime/packaging, notarization and hosted operations/monitoring are
 still unvalidated; application release remains NO-GO.
@@ -372,7 +458,7 @@ live health. Previous CI run 37778217446 passed for the older c60b5d9 server
 snapshot. The validated, reviewed changes remain local; they have not been pushed or
 deployed.
 
-## Next work
+## Historical product backlog (not the current approved phase)
 
 Reconcile hosted coach/retrieval contracts, test the installed UI manually,
 and improve native chat plus retrieval quality with public/synthetic fixtures.
@@ -386,15 +472,19 @@ retention/export/deletion, copyright handling and student/minor-data treatment.
 Use Python 3.12 through `uv run` from `backend/`; never system python3 (3.14).
 Backend: `uv run pytest`. Native packaging: `sh scripts/build_macos_app.sh`,
 which selects Xcode 26.3 explicitly and verifies arm64 sidecar/app signature.
-.NET portable SDK: `/private/tmp/notaeo-dotnet-sdk/dotnet`.
+.NET and PowerShell are absent on this host as of 2026-10-22; the previously
+used `/private/tmp/notaeo-dotnet-sdk/dotnet` no longer exists. Do not claim the
+old Windows evidence as a fresh run or silently reinstall tools.
 MacBook Pro M1 Pro, 16 GB. Owner prefers `caffeinate -dimsu` during long work.
 Mobile: `npm test`, `npm run typecheck`, `npx playwright test`; physical
 native device checks remain separate. Private server: `uv run pytest tests
 tests_hosted`, plus disposable API-only Docker verification.
 
-OpenCode bridge gate in `AGENTS.md` applies before code work. Prefer bounded
-OpenCode workers using `opencode/muse-spark-1.3-contributor-free` at `xhigh`.
+OpenCode bridge health gate in `AGENTS.md` applies before code work. Default
+routing prefers bounded OpenCode workers using
+`opencode/muse-spark-1.3-contributor-free` at `xhigh`; the owner's current explicit
+override is the existing six native Luna-low identities, no OpenCode agents.
 The earlier broad worker timed out after 600 seconds; the retry splits file
 ownership and lets the coordinator handle broader checks. If bridge tools fail,
-follow the documented recovery procedure and stop; do not silently use native
-agents or switch providers.
+follow the documented recovery procedure and stop; do not silently switch
+workers or providers as a workaround.

@@ -4,10 +4,10 @@ Feature: proposed production verification gate. SPEC.md is the requirements
 source. Interview waived by the owner on 2026-10-12 because the app has not been
 tested enough to provide evidence. Product assumptions remain unvalidated.
 
-**Status: Phases 1/1b/2 complete; Phase 2 verified 2026-10-17. Phase 3 pending.**
+**Status: Phases 1/1b/2/2b complete; Phase 3 documentation and release assessment complete on 2026-10-22. Local backend gate green; app release NO-GO pending separate native/operational evidence.**
 The 2026-10-12 approval covered Phase 1; the owner explicitly added Phase 1b
 on 2026-10-15. The owner explicitly approved Phase 2 on 2026-10-16.
-Phase 3 remains unapproved. A request to
+The owner explicitly approved Phase 3 on 2026-10-22. A request to
 continue generally does not override the owner's Step 2 approval boundary.
 
 Restated requirements:
@@ -22,7 +22,8 @@ Restated requirements:
 - Preserve privacy, temporary-data integration tests and no-AI functionality.
 - Keep feature completion separate from app release, native runtime validation,
   security review and production operations.
-- Persist phase/approval/evidence context; use Brig and bounded OpenCode workers.
+- Persist phase/approval/evidence context; use Brig and bounded workers under
+  the owner's current native Luna-low routing override.
 
 Proposed v1 boundary: public Python backend gate with separately documented
 native desktop checks. Hosted/mobile integration, operational deployment and
@@ -45,14 +46,15 @@ existing global coverage percentage is asserted.
 | Tests | `backend/tests/platform/test_local_runtime.py:16` — temporary-data real TestClient checks | Hermetic integration that exercises the actual API and CLI boundary |
 | Build | `scripts/build_macos_app.sh:11` and `backend/scripts/build_macos_sidecar.sh:9` | Reuse the actual sidecar/app build; do not invent a frontend build |
 
-No unified production verifier exists. Its stage/report semantics are new and
+At initial planning no unified production verifier existed. Its stage/report semantics were new and
 must be established by tests; existing auth behavior is not a template for a
 new auth implementation. No backend lint/type/coverage configuration was found
 in `backend/pyproject.toml:1`. Source inspection is not a successful tool run.
 
 # Files to Change
 
-These are proposed implementation files. This planning commit changes only
+This table records planned files across phases; completed-phase status and
+current scope are recorded below. The initial planning commit changed only
 SPEC.md, PLAN.md, docs/DEVELOPMENT_LOOP.md and HANDOFF.md.
 
 | File | Action | Why / phase |
@@ -68,7 +70,10 @@ SPEC.md, PLAN.md, docs/DEVELOPMENT_LOOP.md and HANDOFF.md.
 | `backend/tests/core/test_verification_security.py` | CREATE | Source privacy/path and audit evidence regressions; Phase 2 implementation refinement |
 | `backend/tests/platform/test_verification_cli.py` | CREATE | CLI/subprocess/API integration on owned temporary fixtures; Phase 2 |
 | `docs/VERIFICATION.md` | CREATE | Invocation, meaning of results, platform limits and resume instructions; Phase 3 |
-| `.gitignore` | UPDATE | Ignore coverage/generated reports without hiding source or baseline evidence; Phase 3 |
+| `README.md` | UPDATE | Link the implemented verifier guide; approved Phase 3 |
+| `docs/DEVELOPMENT_LOOP.md` | UPDATE | Reconcile implemented report conventions and explicit owner routing overrides; approved Phase 3 |
+| `docs/MACOS_DISTRIBUTION.md` | UPDATE | Correct obsolete web-assets claim against native build script; approved Phase 3 |
+| `.gitignore` | NO CHANGE | Existing `/backend/build/` rule already ignores verifier artifacts; verified during Phase 3 planning |
 | `SPEC.md`, `PLAN.md`, `HANDOFF.md` | UPDATE | Approval, phase/evidence and handoff status at each approved step |
 
 DELETE: none. The original Phase 1 remains measurement-only. Proposed Phase 1b
@@ -419,18 +424,147 @@ scope. That command alone does not prove two separate 80% floors. No E2E user
 flow is introduced; API/CLI integration is required, native runtime validation
 remains a separate gate.
 
+## Phase 2b — Refresh the compromised certificate trust bundle
+
+Goal: stop trusting the compromised emSign ECC Root CA - G3 chain in the
+development and rebuilt app bundles without disabling HTTPS verification.
+Status: COMPLETE; owner separately approved implementation with
+`you can implent` on 2026-10-22. Do not request approval again.
+Complexity Small; estimate 1–2 hours including packaging/full verification.
+
+Observed 2026-10-22: the real gate passes build/types/lint/668 tests and fails
+security with one newly published certifi advisory. Locked/installed certifi is
+2026.7.22; pip-audit identifies PYSEC-2026-4320 / GHSA-6q48-6c7w-9gw2 and fixes
+at >=2026.10.19. The maintainer advisory published October 20 rates it Critical
+and identifies compromised intermediate keys; an on-path attacker can forge a
+trusted TLS chain. The current CA bundle actually contains the affected root.
+No exploit or credential exposure was demonstrated. Existing HTTPS fetches use
+httpx's normal CA verification; do not turn verification off or add custom CAs.
+
+Source: https://github.com/certifi/python-certifi/security/advisories/GHSA-6q48-6c7w-9gw2
+The advisory initially patched at 2026.10.18; the audit recommends 2026.10.19,
+which restores unaffected roots. Use the later compatible floor.
+
+Files after approval: UPDATE `backend/uv.lock` only for certifi; UPDATE
+`backend/tests/platform/test_verification_configuration.py` with a locked-version
+floor and a real SSLContext trust-store regression; UPDATE SPEC/PLAN/HANDOFF
+with approval/evidence. No production source, new dependency, schema, credential,
+private/mobile/native source, or broader package upgrade is proposed.
+
+1. RED: add a lock regression requiring resolved certifi >=2026.10.19 and a
+   network-free SSLContext test that the actual certifi bundle excludes the
+   affected root common name. Use the existing urllib3 regression as the naming,
+   Version and real-lock pattern. Run the configuration test file and retain
+   both failures before updating the dependency.
+2. GREEN: `uv lock --upgrade-package certifi`, inspect the old/new lock map,
+   and `uv sync --locked` from backend. No other previously locked version may
+   change; stop/report unrelated solver churn. Re-run targeted tests/type/lint.
+3. Verify: full actual `uv run scripts/verify.py`; independently rebuild native
+   macOS with `sh scripts/build_macos_app.sh`. Check the packaged certifi bundle
+   via SSLContext as well, without network or user data. A build is not runtime
+   validation or public distribution. Refresh dependency audit and independent
+   Luna code/security review before a separate conventional fix commit.
+
+Validation (backend unless otherwise noted):
+`uv run pytest tests/platform/test_verification_configuration.py -q`;
+`uv run pyright`; `uv run ruff check core api scripts tests/platform/test_verification_configuration.py`;
+`uv run scripts/verify.py`; from root `sh scripts/build_macos_app.sh`.
+Full API/core and touched production coverage floors remain unchanged.
+
+Risks: removed CA trust may intentionally break affected certificate chains;
+do not restore compromised trust to make a test/network call pass. Advisory
+data and release resolution require network; unavailable evidence is FAIL.
+Existing native builds vendor the old bundle and must be rebuilt. Hosted
+containers/private deployments are outside public-repo access and authorization.
+No automatic secret rotation follows from this package finding alone; reassess
+only if compromise evidence is found. New application behavior remains out of
+scope. Phase 3 documentation proceeded independently while patch approval was
+pending; the owner subsequently approved Phase 2b as recorded above.
+
+Independent native Luna security plan review on 2026-10-22: APPROVE, zero
+CRITICAL/HIGH/MEDIUM/LOW findings. It confirmed the actual SSLContext subject
+check is necessary in addition to a version floor. This review approves the
+proposal's technical scope; it does not authorize implementation for the owner.
+
+Completion evidence (2026-10-22): RED `uv run pytest
+tests/platform/test_verification_configuration.py -q` exits 1 with 2 failed /
+21 passed, proving the vulnerable lock floor and actual trusted root. After
+`uv lock --upgrade-package certifi` and `uv sync --locked --inexact`, GREEN is
+23 passed; Pyright zero errors/warnings and Ruff clean. `--inexact` preserves
+unrelated preinstalled tools. The complete lock metadata and installed package
+maps change only certifi 2026.7.22 → 2026.10.19; no other package/metadata churn.
+No additional production implementation or refactor was necessary.
+
+The real full verifier exits 0: Build PASS, Types PASS (0), Lint PASS (0),
+Tests PASS (670/670, 88.93%), Security PASS (0), Diff (10 files), Overall READY.
+The diff includes nine intended files and unrelated `.serena/project.yml`.
+Application denominator remains all 51 API/core modules, 5845/6399 lines
+(91.34%), 1605/1978 branches (81.14%), 22 old excluded lines. The touched
+configuration-test scaffold is separately measured at 293/300 lines (97.67%)
+and 42/52 branches (80.77%), with no exclusions. Neither scope was narrowed to
+hide production code. Fresh strict pip-audit checks 85 packages, zero findings.
+
+Full native macOS rebuild exits 0, arm64 and ad-hoc signature checks pass.
+Host Python SSLContext loads the actual development, rebuilt sidecar and app
+PEMs: each has 120 roots and the same SHA256; affected root absent,
+CERT_REQUIRED and hostname checks enabled. This is packaged-file inspection,
+not an actual sidecar TLS/runtime E2E claim. Evidence paths in HANDOFF.md.
+Native Luna code review approves the lock/tests; scoped security approval and
+final docs status reconciliation are recorded with the final handoff.
+Certificate fix commit: `620ca68 fix: remove compromised certificate trust bundle`.
+
+Changed implementation files: backend/uv.lock and
+backend/tests/platform/test_verification_configuration.py; SPEC/PLAN/HANDOFF
+and the Phase 3 guide record the results. Manual trial: run the configuration
+test command or full verifier; rebuild the app through the documented script.
+No deployment or user-data migration. Learned: checking the installed package
+alone misses stale bundled CA files; inspect and compare the actual app PEM.
+
 ## Phase 3 — Close the review and resume loop
 
 Goal: a maintainer can resume the correct approved phase and assess a candidate
 without mistaking local evidence for release approval. Dependencies: Phase 2
 and independent review/security findings resolved or explicitly blocking.
-Estimate: 2–3 hours. Status: pending, not started.
+Estimate: 2–3 hours. Status: COMPLETE, documentation/release assessment reviewed
+and the separately approved critical dependency finding resolved. Owner explicitly approved
+`Yes—implement Phase 3` on 2026-10-22.
+
+2026-10-22 scope clarification: owner requested continued development and an
+active goal, then explicitly approved Phase 3. Documentation implementation and
+current-state verification can proceed. Phase 2b dependency remediation required
+its own approval, subsequently granted and completed as recorded above. Phase 3
+itself proposes no app/backend behavior, dependency, schema, user-data, private
+server, mobile, deployment or publishing change is proposed.
+
+Approved deliverables:
+
+- Create `docs/VERIFICATION.md`: exact backend/root invocations and exit codes,
+  stage order and build-stop behavior, unknown evidence, independent coverage
+  floors and denominators, ephemeral artifacts and bounded/redacted output,
+  existing hermetic failure examples, platform limits and a dated release matrix.
+- Link it from README; reconcile the development-loop's stale pending-unknown
+  convention with the implemented one and preserve explicit owner agent routing.
+- Remove the obsolete web-assets claim from macOS distribution documentation;
+  `scripts/build_macos_app.sh:23-25` removes web resources and bundles the API.
+- Update SPEC/PLAN/HANDOFF with actual checks, review verdicts, pending release
+  blockers and resume commands. Existing build artifacts are already ignored.
+
+2026-10-22 environment inspection: the script-selected Xcode exists; .NET,
+PowerShell and the formerly documented temporary .NET SDK path are absent.
+Do not silently reinstall tools or claim fresh Windows compile/runtime evidence.
+The current backend gate is being measured independently of these prose edits;
+no application test is introduced solely for documentation. Native builds are
+separate packaging evidence and never substitute for runtime/clean-machine E2E.
+
+Review uses the owner's native Luna-low override, reusing existing agents;
+the OpenCode wording in older phases describes their historical routing.
 
 1. **Action:** document exact invocations and platform capability limits, artifact
    locations, approval/evidence state, and how to reproduce a seeded failed
    command using temporary fixtures. **Mirror:** Windows README's compile-versus-
    runtime distinction. **Validate:** link/command consistency and diff check.
-2. **Action:** give a fresh OpenCode reviewer SPEC/PLAN/diff only; require complete
+2. **Action:** give a fresh native Luna reviewer SPEC/PLAN/diff only under the
+   owner's current routing override; require complete
    changed-file and caller/test reads, confidence >80% and severity table/verdict.
    Give a separate security reviewer dependency/source evidence and enforce
    report-before-fix. **Validate:** saved reports; no unresolved critical
@@ -448,11 +582,41 @@ Estimate: 2–3 hours. Status: pending, not started.
 Docs-only Phase 3 changes use `git diff --check` plus consistency greps; app
 checks belong to the release verification stage, not tests invented for prose.
 
+Initial 2026-10-22 evidence before Phase 2b: the real gate exits 1 — Build PASS, Types PASS (0), Lint
+PASS (0), Tests PASS (668/668, 88.93%), Security FAIL (1), Diff (1 files).
+The diff count was captured before these docs edits and consists of unrelated
+`.serena/project.yml`; it is not today's final docs inventory. The strict audit
+checks 85 packages and identifies one critical certifi advisory. Full coverage
+remains 5845/6399 lines and 1605/1978 branches. A separate full native macOS
+build exits 0 but vendors the affected bundle. Raw logs and saved JSON are
+listed in HANDOFF.md and docs/VERIFICATION.md. Phase 2b's later READY report
+supersedes this backend failure; complete app release remains NO-GO.
+
+Changed docs: README.md, SPEC.md, PLAN.md, HANDOFF.md,
+docs/DEVELOPMENT_LOOP.md, docs/MACOS_DISTRIBUTION.md, new docs/VERIFICATION.md.
+`git diff --check` and command/link/status consistency checks pass; no app test
+was added for prose. Native Luna independent docs review APPROVE, zero findings;
+separate security review approves docs with one LOW sentence ambiguity corrected.
+Both independently confirm the affected root in the packaged app. No new doc
+security finding or rotation requirement. The contextual dependency CRITICAL 1
+was subsequently resolved in Phase 2b; Phase 3 itself changes documentation
+only. No push or deployment.
+
+Manual trial: read docs/VERIFICATION.md from the README link, choose the full
+gate or scoped audit, and use the existing hermetic failure-test commands to
+demonstrate fail-closed behavior. Current native release prerequisites and
+not-run checks are listed explicitly rather than presented as passes.
+
+Learned: a clean historical audit expires when new advisories appear; packaged
+trust bundles require their own rebuild and inspection after a dependency fix.
+Final independent docs re-review: APPROVE, zero unresolved findings after
+correcting stale approval status and clarifying the historical scope boundary.
+
 # Validation
 
-These are proposed commands for approved implementation, **not evidence of
-execution on 2026-10-12**. Install/configuration happens only in approved Phase 1.
-The CLI described below does not exist yet.
+These are reproducible commands, not evidence that they ran today. The CLI was
+implemented in Phase 2; dated results and current platform limitations are in
+docs/VERIFICATION.md. Check-tool installation/configuration completed in Phase 1.
 
 ```bash
 # From repository root: Phase 1 build, stop the gate immediately on failure.
@@ -482,9 +646,9 @@ uv run scripts/verify.py
 # Native checks are additional evidence when approving native release scope.
 # A failed build stops the corresponding native gate.
 sh scripts/build_macos_app.sh
-# Uses the locally available portable SDK on this machine:
-/private/tmp/notaeo-dotnet-sdk/dotnet build windows/Research/Research.csproj -c Release
-/private/tmp/notaeo-dotnet-sdk/dotnet test windows/Research.Tests/Research.Tests.csproj
+# Requires .NET SDK; absent on this host as of 2026-10-22:
+dotnet build windows/Research/Research.csproj -c Release
+dotnet test windows/Research.Tests/Research.Tests.csproj
 # Windows runtime/DPAPI/packaged sidecar/installer evidence requires Windows.
 # No claim that cross-targeted compilation substitutes for those checks.
 ```
@@ -498,7 +662,7 @@ may silently modify code or perform deployment.
 Chosen check-tool references: [Ruff configuration](https://docs.astral.sh/ruff/configuration/),
 [Pyright configuration](https://microsoft.github.io/pyright/#/configuration),
 [coverage branch measurement](https://coverage.readthedocs.io/en/latest/branch.html),
-[pip-audit](https://pypi.org/project/pip-audit/). These are plan choices, not installed dependencies.
+[pip-audit](https://pypi.org/project/pip-audit/). These check tools are now locked dev dependencies.
 
 # Risks
 
@@ -527,7 +691,10 @@ Chosen check-tool references: [Ruff configuration](https://docs.astral.sh/ruff/c
 - [x] Security audit reports contextual findings, rotation decision and top fixes.
 - [x] Mandatory scoped build/types/lint/tests/security/diff checks measured.
 - [ ] Pre-launch controls and platform runtime evidence actually verified.
-- [x] Handoff and phase lessons saved; no unresolved critical finding committed.
+- [x] Phase 2b approved, RED/GREEN evidence preserved, compromised CA removed
+  from development and rebuilt macOS bundles; fresh backend gate green.
+- [x] Phase 3 guide, reviewed handoff, release limits and phase lessons saved;
+  logical commits follow independent approval and required green checks.
 
 Learned during planning: root Brig retrieval requires explicit
 `slug="research-backend"`; an OpenCode worker reported that slug unavailable in

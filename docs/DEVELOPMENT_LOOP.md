@@ -24,13 +24,13 @@ on behalf of the owner.
    Prove at least 80% lines and branches on touched code without suppressing or
    deleting failures. Record every changed file, commands/output, manual trial,
    phase completion and one lesson in the plan. No unrelated refactors.
-4. **Fresh review:** give a separate OpenCode reviewer only the SPEC, PLAN and
+4. **Fresh review:** give a separate reviewer only the SPEC, PLAN and
    diff. It gathers diff/stat and reads every changed file fully, with relevant
    callers/imports/tests. Findings require >80% confidence. High/critical
    findings include file:line, snippet, concrete failure and why guards fail.
    Skip unrelated style preferences. End with severity counts and
    APPROVE/WARNING/BLOCK; no approval with unresolved critical findings.
-5. **Security audit:** a separate OpenCode reviewer reports before changes.
+5. **Security audit:** a separate security reviewer reports before changes.
    Scan dependencies and source, then review OWASP categories in context.
    Test fixtures, placeholders and public values are not automatically secrets.
    Record severity, file:line, exploit scenario, safe example, rotation decision
@@ -44,7 +44,9 @@ on behalf of the owner.
 
    Fields must contain real measured counts. A missing/not-run stage cannot
    count as PASS. Represent unknown evidence explicitly and explain it in the
-   issues; exact unknown-value convention is pending owner confirmation.
+   issues. The approved convention is stage FAIL, numeric field `unknown`,
+   with the reason in the numbered issues. A measured zero is distinct from
+   missing evidence. See [the verifier guide](VERIFICATION.md).
 7. **Ship/handoff:** demonstrate every SPEC requirement, complete the plan,
    verify critical flows and security, and check migrations/rollback,
    monitoring/alerts and docs. Record PASS/FAIL and explicit blockers; unresolved
@@ -55,9 +57,13 @@ on behalf of the owner.
 
 ## Context and delegation
 
-Run the AGENTS.md OpenCode gate before code work. Use bounded OpenCode workers
-at `opencode/muse-spark-1.3-contributor-free`, `xhigh`, with explicit file ownership.
-Never silently substitute native agents when the bridge fails. Preserve review
+Run the AGENTS.md bridge startup health check before code work. The default
+delegation policy uses bounded OpenCode workers at
+`opencode/muse-spark-1.3-contributor-free`, `xhigh`, with explicit file ownership.
+The owner's current session instruction overrides delegation: use the six
+existing native Luna identities at low reasoning, with no OpenCode agents;
+respect the concurrency limit. Do not treat a failed bridge check as permission
+to substitute workers silently. Preserve review
 independence by supplying only the review packet, not the worker's narrative.
 
 Use Brig for fresh, compact code indexes/outlines/symbol lookup; verify snippets

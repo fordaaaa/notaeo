@@ -1,10 +1,13 @@
-# Proposed v1: production verification gate
+# v1: production verification gate
 
 Status: Phase 1 approved by the owner (`yes`, 2026-10-12); Phase 1b remediation
 was explicitly approved and completed on 2026-10-15. Phase 2 was explicitly
-approved on 2026-10-16 and completed on 2026-10-17; Phase 3 remains pending.
-The automated local backend gate passes; complete application release gates
-remain unfinished. Interview
+approved on 2026-10-16 and completed on 2026-10-17. Phase 3 was explicitly
+approved on 2026-10-22; its documentation and release assessment are reviewed.
+Phase 2b trust-store remediation was separately approved and implemented on
+2026-10-22. The fresh backend gate passes with 670 tests and zero dependency
+findings; rebuilt macOS bundles exclude the compromised root. Complete
+application release gates remain unfinished. Interview
 waived on 2026-10-12. The owner has not tested enough to supply product evidence. This
 is the proposed first feature for the requested development loop. Prioritizing
 it over account recovery or a student-facing feature is TBD — needs validation
@@ -86,6 +89,14 @@ must be preserved. Optional AI malformed-output handling must retain useful
 basic study fallback. No new product-usefulness or student validation claim
 follows from these technical fixes.
 
+### Trust-store remediation — approved 2026-10-22
+
+Development and rebuilt desktop bundles must no longer trust the compromised
+emSign ECC Root CA - G3 certificate chain. HTTPS certificate verification must
+remain enabled. Remediation must preserve the existing account, source and
+no-AI behavior, with fresh dependency and packaging evidence before accepting
+the local change. No exposure or compromise is assumed from the advisory alone.
+
 ### Out of scope
 
 Website restoration, personal AI keys, local models and paid infrastructure are
@@ -99,8 +110,9 @@ of this proposed gate MVP unless the owner changes its scope.
 | Business outcome | Status |
 | --- | --- |
 | Maintainer agrees which release boundary and evidence establish readiness | Backend boundary approved; native release evidence pending |
-| Maintainer can reproduce an honest blocker report for the approved scope | Ordered automated backend gate implemented and exercised; 668 tests pass |
+| Maintainer can reproduce an honest blocker report for the approved scope | Ordered automated backend gate implemented and exercised; 670 tests pass |
 | Independent reviewers confirm failure detection and privacy boundaries | Phase 2 native Luna code/security reviews approve; zero unresolved findings |
+| Maintainer can distinguish current evidence from historical passes | Phase 3 documentation reviewed; new dependency blocker reported, separately approved and resolved with fresh evidence |
 | A release candidate satisfies all declared requirements and launch checks | Pending |
 
 ## Open questions
@@ -126,5 +138,5 @@ The waived interview will not be asked again for this loop.
 
 Validation status: problem assumption; users concrete (maintainer, not a
 validated student segment); metrics defined for correctness, outcome metrics TBD.
-Suggested next step: use the completed verifier on the next approved change.
-Phase 3 documentation/release work still requires explicit approval.
+Suggested next step: validate native critical flows in a separately planned
+phase before public release; use the completed gate on subsequent changes.

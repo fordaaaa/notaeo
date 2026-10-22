@@ -1,9 +1,10 @@
 # macOS distribution status
 
 `sh scripts/build_macos_app.sh` produces an arm64 `Notaeo.app` in
-`macos/build/Build/Products/Release/`. It bundles the local FastAPI sidecar
-and web assets, checks the sidecar architecture, and verifies an ad-hoc
-signature. This build is suitable for local development and manual testing.
+`macos/build/Build/Products/Release/`. The app uses native SwiftUI controls
+and bundles the local FastAPI sidecar. The build checks the sidecar architecture
+and verifies an ad-hoc signature. It is suitable for local development and
+manual testing.
 
 An ad-hoc signature does not make the app notarized or ready for general
 download. A future public release needs a Developer ID certificate, hardened

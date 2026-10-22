@@ -76,6 +76,11 @@ The service exposes `/api/*` for the installed apps. `/`, `/index.html`,
 `/docs` and `/redoc` return 404; server-mode `/openapi.json` remains available
 for API tooling. Browser CORS access is disabled by default.
 
+Run the ordered backend verification gate from `backend/` with
+`uv run scripts/verify.py`. See [the verification guide](docs/VERIFICATION.md)
+for exit codes, coverage rules, failure examples and separate native release
+checks. A passing backend report does not establish app release readiness.
+
 ## Desktop and mobile
 
 - **macOS (alpha):** SwiftUI interface calling the local FastAPI API
