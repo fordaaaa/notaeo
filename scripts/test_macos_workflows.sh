@@ -92,6 +92,7 @@ DEVELOPER_DIR="$developer_dir" xcrun swiftc -parse-as-library -swift-version 6 \
     macos/Research/AppState.swift macos/Research/BackendProcess.swift \
     macos/Research/DownloadHandler.swift macos/Research/NativeStyle.swift \
     macos/Research/NativePresentation.swift macos/Research/SourcePasteController.swift \
+    macos/Research/TodayController.swift \
     macos/WorkflowChecks/PackagedWorkflow.swift -o "$workflow_build_dir/check"
 workflow_fixture="$workflow_build_dir/fixture"
 mkdir "$workflow_fixture" "$workflow_fixture/home" "$workflow_fixture/tmp" "$workflow_fixture/data"

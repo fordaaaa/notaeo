@@ -1,6 +1,41 @@
 import XCTest
 @testable import Notaeo
 
+final class CourseworkAPITests: XCTestCase {
+    func testTodayLoadsAndSavesRealCourseworkWithAccountAndDesktopHeaders() async throws {
+        StubURLProtocol.handler = { request in
+            XCTAssertEqual(request.value(forHTTPHeaderField: "Authorization"), "Bearer acct-1")
+            XCTAssertEqual(request.value(forHTTPHeaderField: "X-Notaeo-Desktop-Token"), "desk-per-launch")
+            let task = #"{"id":"task","title":"Essay","details":"","class_id":"course","class_name":"English","due_at":null,"done":false,"notebook_id":"notes"}"#
+            let body: String
+            switch (request.httpMethod, request.url!.path) {
+            case ("GET", "/api/assignments"): body = "[\(task)]"
+            case ("GET", "/api/classes"): body = #"[{"id":"course","name":"English"}]"#
+            case ("POST", "/api/assignments"):
+                let json = try JSONSerialization.jsonObject(with: bodyData(request)) as! [String: String]
+                XCTAssertEqual(json, ["title": "Essay", "class_id": "course", "notebook_id": "notes"])
+                body = task
+            case ("PATCH", "/api/assignments/task"):
+                let json = try JSONSerialization.jsonObject(with: bodyData(request)) as! [String: Bool]
+                XCTAssertEqual(json, ["done": true])
+                body = task.replacingOccurrences(of: "\"done\":false", with: "\"done\":true")
+            default: XCTFail("Unexpected coursework request"); body = "{}"
+            }
+            return (http(request.url!, status: 200), Data(body.utf8))
+        }
+        let client = api()
+        let work = try await client.listAssignments()
+        XCTAssertNil(work.first?.dueAt)
+        XCTAssertEqual(work.first?.notebookId, "notes")
+        let classes = try await client.listClasses()
+        XCTAssertEqual(classes.first?.name, "English")
+        let saved = try await client.createAssignment(AssignmentDraft(title: "Essay", classId: "course", notebookId: "notes"))
+        XCTAssertEqual(saved.id, "task")
+        let done = try await client.completeAssignment(id: saved.id, done: true)
+        XCTAssertTrue(done.done)
+    }
+}
+
 final class NativeMotionTests: XCTestCase {
     @MainActor
     func testTestHostStartsWithoutRestoringOrSharingAccountState() {

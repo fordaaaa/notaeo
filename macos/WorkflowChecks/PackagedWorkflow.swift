@@ -99,7 +99,7 @@ struct PackagedWorkflow {
                 defer { group.cancelAll() }
                 _ = try await group.next()
             }
-            print("PACKAGED NATIVE WORKFLOW PASS: auth, paste/upload/read/search, duplicate consent contract, basic revision, maps/export, ownership and revocation")
+            print("PACKAGED NATIVE WORKFLOW PASS: auth, Today coursework, paste/upload/read/search, duplicate consent contract, basic revision, maps/export, ownership and revocation")
         } catch {
             FileHandle.standardError.write(Data("PACKAGED NATIVE WORKFLOW FAIL: \(error)\n".utf8))
             exit(1)
@@ -150,6 +150,22 @@ struct PackagedWorkflow {
         let notebook = try await api.createNotebook(name: "Biology 雪 — exam workflow")
         let notebooks = try await api.listNotebooks()
         try require(notebooks.contains { $0.id == notebook.id }, "Created course notebook missing")
+
+        let coursework = TodayController()
+        coursework.bind(accountToken: account.accountToken)
+        await coursework.load(using: api)
+        try require(coursework.assignments.isEmpty && coursework.notice == nil, "New account coursework is not empty")
+        let added = await coursework.add(AssignmentDraft(title: "Read Biology", notebookId: notebook.id), using: api)
+        try require(added, "Today could not save linked coursework")
+        guard let assignment = coursework.assignments.first else {
+            throw WorkflowFailure(description: "Today saved no assignment")
+        }
+        try require(assignment.notebookId == notebook.id && assignment.dueAt == nil, "Coursework material/deadline mismatch")
+        await coursework.setDone(assignment, done: true, using: api)
+        let reloaded = TodayController()
+        reloaded.bind(accountToken: account.accountToken)
+        await reloaded.load(using: api)
+        try require(reloaded.assignments.first?.done == true, "Today completion did not persist")
         let text = "Photosynthesis converts sunlight into chemical energy inside chloroplasts. "
             + "Chlorophyll pigments capture photons in the thylakoid membranes. "
             + "Mitochondria release energy from glucose during cellular respiration. "
@@ -245,6 +261,11 @@ struct PackagedWorkflow {
         try await expectError("notFound") { _ = try await foreign.searchNotebook(notebookId: notebook.id, request: NativeSearchRequest(query: "photosynthesis")) }
         try await expectError("notFound") { _ = try await foreign.getCoachState(notebookId: notebook.id) }
         try await expectError("notFound") { _ = try await foreign.exportNotebook(id: notebook.id) }
+        try await expectError("notFound") {
+            _ = try await foreign.createAssignment(AssignmentDraft(title: "Foreign link", notebookId: notebook.id))
+        }
+        let foreignWork = try await foreign.listAssignments()
+        try require(foreignWork.isEmpty, "Other account can see or create linked coursework")
         await account.signOut(session: session)
         try require(!account.isLoggedIn, "Native logout did not clear the account")
         try await expectError("unauthorized") { _ = try await api.me() }

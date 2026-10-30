@@ -6,7 +6,7 @@ import UniformTypeIdentifiers
 struct MainView: View {
     @EnvironmentObject private var appState: AppState
     @State private var notebooks: [Notebook] = []
-    @State private var selectedId: String?
+    @State private var selectedId: String? = "today"
     @State private var newName = ""
     @State private var notice: String?
     @State private var loading = false
@@ -76,7 +76,10 @@ struct MainView: View {
                     .animation(motion.animation, value: tab)
                 }
             } else {
-                ContentUnavailableView("A space for your next exam", systemImage: "books.vertical", description: Text("Create a notebook for a course, then add your material and plan a revision session."))
+                TodayView(notebooks: notebooks) { notebook, study in
+                    selectedId = notebook.id
+                    tab = study ? .coach : .sources
+                }.id(appState.accountToken)
             }
         }
         .font(NativeType.body)
@@ -92,7 +95,7 @@ struct MainView: View {
                     searchFocusVersion += 1
                 } label: { Label("Search course material", systemImage: "magnifyingglass") }
                 .keyboardShortcut("f", modifiers: .command)
-                .disabled(selectedId == nil)
+                .disabled(!notebooks.contains(where: { $0.id == selectedId }))
                 .help("Search course material (⌘F)")
             }
         }
@@ -107,6 +110,7 @@ struct MainView: View {
                 if loading { ProgressView().controlSize(.small).accessibilityLabel("Loading notebooks") }
             }.padding(.horizontal, 16).padding(.vertical, 18)
             List(selection: $selectedId) {
+                Label("Today", systemImage: "checklist").tag("today" as String?)
                 ForEach(notebooks) { nb in
                     Label(nb.name, systemImage: "text.book.closed")
                         .font(.system(size: 14, weight: .medium))
@@ -116,7 +120,7 @@ struct MainView: View {
             }
             Divider()
             VStack(alignment: .leading, spacing: 10) {
-                Text("Start a new course").font(NativeType.caption).foregroundStyle(.secondary)
+                Text("Add course material").font(NativeType.caption).foregroundStyle(.secondary)
                 TextField("New notebook name", text: $newName).textFieldStyle(.roundedBorder)
                 Button {
                     Task { await create() }
@@ -135,7 +139,7 @@ struct MainView: View {
         loading = true; defer { loading = false }
         do {
             notebooks = try await api.listNotebooks()
-            if selectedId == nil { selectedId = notebooks.first?.id }
+            if selectedId == nil { selectedId = "today" }
             notice = nil
         } catch {
             notice = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
