@@ -10,7 +10,7 @@ from datetime import timedelta
 
 from fastapi import Depends, FastAPI, HTTPException, Query
 
-from api.deps import get_current_user, get_store, safe_id
+from api.deps import get_current_user, get_store, notebook_or_404, safe_id
 from core.dashboard import build_calendar_days
 from core.models import (
     Assignment,
@@ -71,6 +71,7 @@ def register(app: FastAPI) -> None:
                 raise HTTPException(status_code=404, detail="class not found")
         if body.notebook_id is not None:
             body.notebook_id = safe_id(body.notebook_id, "notebook_id")
+            notebook_or_404(store, user.id, body.notebook_id)
         assignment = store.create_assignment(
             user.id, body.title.strip(), body.due_at,
             class_id=body.class_id, details=body.details, notebook_id=body.notebook_id,
@@ -88,13 +89,17 @@ def register(app: FastAPI) -> None:
         user: User = Depends(get_current_user),
     ):
         assignment_id = safe_id(assignment_id, "assignment_id")
+        store = get_store(app)
+        if store.get_assignment(user.id, assignment_id) is None:
+            raise HTTPException(status_code=404, detail="assignment not found")
         if body.class_id:
             body.class_id = safe_id(body.class_id, "class_id")
             if get_store(app).get_class(user.id, body.class_id) is None:
                 raise HTTPException(status_code=404, detail="class not found")
-        if body.notebook_id:
+        if body.notebook_id is not None:
             body.notebook_id = safe_id(body.notebook_id, "notebook_id")
-        updated = get_store(app).update_assignment(
+            notebook_or_404(store, user.id, body.notebook_id)
+        updated = store.update_assignment(
             user.id, assignment_id, body.model_dump(exclude_unset=True)
         )
         if updated is None:
