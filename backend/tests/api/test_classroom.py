@@ -173,18 +173,71 @@ def test_sync_maps_courses_and_coursework_idempotently(
     first = client.post("/api/classroom/sync")
     assert first.status_code == 200
     body = first.json()
-    assert body == {"classes_synced": 1, "assignments_synced": 1, "assignments_skipped": 1}
+    assert body == {"classes_synced": 1, "assignments_synced": 2, "assignments_skipped": 0}
 
     listed = client.get("/api/assignments").json()
-    assert [a["title"] for a in listed] == ["Cell test"]
+    assert {a["title"] for a in listed} == {"Cell test", "Reading (no due date)"}
+    undated = next(a for a in listed if a["title"] == "Reading (no due date)")
+    assert undated["due_at"] is None
     assert listed[0]["source"] == "google_classroom"
     assert listed[0]["class_name"] == "AP Biology"
     assert listed[0]["due_at"].startswith("2026-10-15T23:59")
 
     # a second sync must refresh in place, not duplicate
     second = client.post("/api/classroom/sync").json()
-    assert second == {"classes_synced": 1, "assignments_synced": 0, "assignments_skipped": 1}
-    assert len(client.get("/api/assignments").json()) == 1
+    assert second == {"classes_synced": 1, "assignments_synced": 0, "assignments_skipped": 0}
+    assert len(client.get("/api/assignments").json()) == 2
+
+
+@pytest.mark.parametrize("due_fields", [{}, {"dueDate": None}])
+def test_sync_removing_deadline_preserves_student_progress(
+    client: TestClient, configured: None, monkeypatch: pytest.MonkeyPatch,
+    due_fields: dict[str, object],
+) -> None:
+    _mock_http(monkeypatch)
+    state = client.get("/api/classroom/authorize").json()["authorize_url"].split("state=")[1].split("&")[0]
+    client.get(f"/api/classroom/callback?code=abc&state={state}")
+    assert client.post("/api/classroom/sync").status_code == 200
+    assignment = next(a for a in client.get("/api/assignments").json() if a["external_id"] == "cw-1")
+    notebook = client.post("/api/notebooks", json={"title": "Biology readings"}).json()
+    changed = client.patch(
+        f"/api/assignments/{assignment['id']}",
+        json={"done": True, "notebook_id": notebook["id"]},
+    )
+    assert changed.status_code == 200
+    monkeypatch.setitem(COURSEWORK, "courseWork", [
+        {"id": "cw-1", "title": "Reading updated", "description": "New reading", **due_fields},
+    ])
+
+    result = client.post("/api/classroom/sync")
+    assert result.status_code == 200
+    assert result.json() == {"classes_synced": 1, "assignments_synced": 0, "assignments_skipped": 0}
+    refreshed = next(a for a in client.get("/api/assignments").json() if a["external_id"] == "cw-1")
+    assert refreshed["id"] == assignment["id"]
+    assert refreshed["title"] == "Reading updated"
+    assert refreshed["details"] == "New reading"
+    assert refreshed["due_at"] is None
+    assert refreshed["done"] is True
+    assert refreshed["notebook_id"] == notebook["id"]
+    assert len(client.get("/api/assignments").json()) == 2
+
+
+@pytest.mark.parametrize("due_date", [{}, {"year": 2026, "month": 13, "day": 1}])
+def test_sync_skips_malformed_deadline_instead_of_treating_it_as_undated(
+    client: TestClient, configured: None, monkeypatch: pytest.MonkeyPatch,
+    due_date: dict[str, int],
+) -> None:
+    _mock_http(monkeypatch)
+    state = client.get("/api/classroom/authorize").json()["authorize_url"].split("state=")[1].split("&")[0]
+    client.get(f"/api/classroom/callback?code=abc&state={state}")
+    monkeypatch.setitem(COURSEWORK, "courseWork", [
+        {"id": "invalid", "title": "Invalid deadline", "dueDate": due_date},
+    ])
+
+    result = client.post("/api/classroom/sync")
+    assert result.status_code == 200
+    assert result.json() == {"classes_synced": 1, "assignments_synced": 0, "assignments_skipped": 1}
+    assert client.get("/api/assignments").json() == []
 
 
 def test_disconnect_clears_connection(
@@ -196,3 +249,38 @@ def test_disconnect_clears_connection(
     assert client.delete("/api/classroom/connection").status_code == 204
     assert client.get("/api/classroom/status").json()["connected"] is False
     assert client.post("/api/classroom/sync").status_code == 400
+
+
+@pytest.mark.parametrize("refresh_status", [200, 401, 502])
+def test_sync_expired_connection_refresh_and_failure_recovery(
+    client: TestClient, configured: None, monkeypatch: pytest.MonkeyPatch,
+    refresh_status: int,
+) -> None:
+    _mock_http(monkeypatch)
+    state = client.get("/api/classroom/authorize").json()["authorize_url"].split("state=")[1].split("&")[0]
+    client.get(f"/api/classroom/callback?code=abc&state={state}")
+    later = datetime.now(timezone.utc) + timedelta(hours=2)
+    monkeypatch.setattr("api.classroom.utcnow", lambda: later)
+    calls: list[str] = []
+
+    def refresh(http: httpx.Client, client_id: str, secret: str, token: str) -> dict[str, object]:
+        calls.append(token)
+        if refresh_status != 200:
+            raise classroom.ClassroomError("token refresh failed", refresh_status)
+        return {"access_token": "synthetic-refreshed", "expires_in": 3600}
+
+    monkeypatch.setattr(classroom, "refresh_access_token", refresh)
+    response = client.post("/api/classroom/sync")
+    assert calls == ["1//refresh"]
+    assert response.status_code == (409 if refresh_status == 401 else refresh_status)
+    status = client.get("/api/classroom/status").json()
+    assert status["connected"] is (refresh_status != 401)
+    if refresh_status == 200:
+        assert len(client.get("/api/assignments").json()) == 2
+        assert status["last_sync_at"] == later.isoformat().replace("+00:00", "Z")
+    else:
+        assert client.get("/api/assignments").json() == []
+        assert status["last_sync_at"] is None
+        if refresh_status == 401:
+            assert "reconnect" in response.json()["detail"]
+            assert client.post("/api/classroom/sync").status_code == 400

@@ -143,7 +143,8 @@ def register(app: FastAPI) -> None:
                     work = classroom.list_coursework(http, access_token, str(course.get("id")))
                     for item in work:
                         due = classroom.parse_due(item)
-                        if due is None:
+                        # Missing deadlines are valid coursework; malformed dates are skipped.
+                        if due is None and item.get("dueDate") is not None:
                             assignments_skipped += 1
                             continue
                         _, created = store.upsert_classroom_assignment(
