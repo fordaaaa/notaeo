@@ -11,6 +11,14 @@ read them in-app, research the public web, and study with flashcards,
 one-page guides, and mind maps. Self-hosting stays $0 — a SQLite file, no
 paid service.
 
+The audience is high school, college and university students, initially with
+Canadian coursework in mind. Lead with organising course material, seeing what
+needs attention, practising from sources and keeping exportable notes. Useful
+study must work without a school connection or AI. Do not market planned LMS
+connections, automatic extraction, reminders or client parity as shipped.
+The current evidence and measurable delivery goals are in
+[the shipping plan](SHIPPING_PLAN.md).
+
 ## Student workspace direction
 
 Owner update, 2026-10-22: Notaeo should combine engaging study with an organized
@@ -20,8 +28,11 @@ exam-coach positioning; exam coaching remains a core workflow within the product
 See [the grounded workspace direction and first visible milestone](STUDENT_WORKSPACE.md).
 The first product milestone is Today and a connected course/material workspace,
 using existing dashboard/classes/assignment/review foundations while validating
-their date and ownership contracts. Stronger study, writing/citations and real
-reminders follow as connected workflows. These surfaces are proposed, not shipped.
+their date and ownership contracts. A local Today task foundation now exists in
+macOS/mobile: add, complete/reopen and open linked material, with local day
+buckets. Course creation, task editing, due-review/resume and the fuller course
+overview remain open; native is committed, mobile review/commit remains pending.
+Stronger study, writing/citations and real reminders follow as connected workflows.
 Do not count existing backend endpoints or reliability checks as a complete app.
 
 ## Existing exam-coach foundation

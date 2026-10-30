@@ -1,5 +1,12 @@
 # Notaeo student workspace — direction update, 2026-10-22
 
+Implementation update, 2026-10-30: a local Today task foundation now connects
+assignment creation/completion and linked material/study in macOS and mobile.
+The backend ownership prerequisites are committed; client candidates await
+independent approval. [Current evidence and scope](today/REVIEW.md). The original
+gap assessment below records the October22 state; the complete course/planner,
+writing/reminder and due-review/resume directions are still unfinished.
+
 Owner feedback: both mobile and macOS feel bare bones. The intended direction
 is engaging study informed by Gizmo, within a workspace that connects planning,
 alerts, citations and paper writing. This expands the earlier exam-coach-only

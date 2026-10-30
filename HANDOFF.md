@@ -1,5 +1,108 @@
 # HANDOFF.md
 
+## Continuing goals and Today task foundation — 2026-10-30
+
+Owner authorised continuing through bounded goals and commits until usage limits;
+do not introduce repeated approval prompts. Three independently reviewed backend
+commits are complete: `13ab139` undated Classroom work, `ad6b5d9` Python dependency
+refresh and `c8bbe68` assignment notebook ownership. Beam Free/max APPROVE session
+`ses_e742c60e3ffeqX1oxF4e42uTCd`. Final backend gate686/686,89.31%combined,
+build/types/lint/security PASS and zero findings. No push/deployment.
+
+The local macOS/mobile Today task foundation is implemented. Native is reviewed
+and committed as `70836a9`; mobile review/commit is pending. See
+`docs/today/{SPEC,PLAN,REVIEW}.md`. Today is the signed-in
+landing, with overdue/local-today/upcoming/undated lists, add/complete/reopen,
+existing course/notebook selection and material/coach navigation. Guest local
+notebooks remain. This is a bounded foundation; course creation, task editing,
+due-review/resume links and a complete course workspace remain open goals.
+
+Native RED5 failures→GREEN; full112/112 XCTest pass. Signed app and packaged
+workflow pass, including actual Today create/complete/fresh-controller reload
+and cross-account link rejection. Mobile RED5→GREEN, expanded196unit tests;
+types and real backend lane pass;24 phone-browser checks pass. Existing test
+assertions were retained with explicit Library navigation after login. Both
+Hermes bundles export; native mobile GUI/restart/release remains unverified.
+The add form is collapsed on mobile so coursework leads the landing screen.
+
+All model delegation remains `opencode/beam-free` at `max`. A process-local
+wrapper adds `--pure` and disables unrelated OpenCode MCP connections; this
+made health checks and the backend review succeed. Global configuration remains
+unchanged. A later native review failed with an upstream TLS error after tool
+activity and no verdict; custom-agent reviews timed out after600s. A smaller
+standard-agent native review APPROVED in `ses_e73f13f8bffeT2wDylgwjeX4hb`;
+separate standard-agent mobile review is now running.
+Never count an errored or timed-out run as approval. Commit only actually
+reviewed changes, preserve `.serena/project.yml` and the older pending LMS docs.
+Mobile checkout has only this task's changes; private checkout stays clean.
+
+Current goal: obtain mobile review, resolve findings, run the required final
+checks and commit mobile Today; save evidence and create the
+next bounded goal. Do not silently widen this into OAuth, hosted deployment,
+notification delivery, bibliography support or new AI services. Temporary review
+outputs: `/tmp/notaeo-native-standard-retry.log` (approval) and
+`/tmp/notaeo-mobile-standard-retry.log` (pending); validation prefixes
+`/tmp/notaeo-today-*` and `/tmp/notaeo-mobile-today-*`.
+
+## Student shipping assessment and goals — 2026-10-30
+
+Owner asked to continue, set goals and test apps/login/features/Tailscale toward
+a high school, college and university student product. Current measurable goals,
+Canadian LMS examples and release limits: [SHIPPING_PLAN](docs/SHIPPING_PLAN.md).
+PRODUCT now names that audience explicitly. Next visible client milestone is
+still Today with connected course/material/assignment navigation; secure
+Classroom connection foundation is the bounded connector milestone. Do not
+restart a planning interview or present connectors as already live.
+
+Local uncommitted fix: Classroom sync now imports missing/null-deadline work
+instead of discarding it, while malformed non-null dates remain skipped. Repeat
+sync clears removed deadlines and preserves ID/completion/notebook links. First
+regressions RED: 3 failed/22 passed; GREEN: 25 passed. Three further expired-token
+refresh/recovery cases give 28 targeted passes and 89% combined route coverage.
+No storage/schema, OAuth, scopes, pagination or native connector UI changes.
+
+Fresh verification: baseline backend 670/670; after initial fix 674/674; mobile
+types, 189 unit tests, 22 phone-browser checks and actual disposable-backend
+workflow pass. macOS XCTest 106/106 and signed arm64 packaged workflow pass.
+iOS/Android Hermes bundles export; Expo Go 57 renders the guest screen on iPhone
+17 Pro / iOS26.3. Native authenticated mobile GUI/restart and release binaries
+remain unverified; Windows tooling is absent. Mobile tracked files are clean.
+Reinstalling its locked dependencies resolved missing local Rolldown files.
+
+The first full verifier refused readiness for route coverage and 18 Python
+dependency advisories. Refresh/recovery tests raise coverage; a bounded uv.lock
+update changes only filelock4.1.1→4.2.4 and setuptools84.0.0→84.2.1. Strict
+installed pip-audit then reports zero known vulnerabilities. Final full verifier:
+Build PASS, Types PASS(0), Lint PASS(0), Tests PASS(677/677,89.17%combined),
+Security PASS(0), Diff10, Overall READY. This describes the local backend gate;
+external beta remains NO-GO and no hosted release approval is implied.
+Mobile audit still has 12 entries (4high/3moderate/5low), no critical findings.
+
+Read-only live checks: Tailscale has no reported health errors, homelab ping33ms,
+HTTPS `/api/health`200 and unauthenticated `/api/auth/me`401. `/api/ready`404
+both via HTTPS and server loopback conflicts with the private runbook's expected
+200/503 contract; reconcile deployed version before release. Root/docs404 are
+expected. Research container port8000 is published on all interfaces; host
+firewall/public ingress not verified. No service/network/deployment edits or
+real-account writes were made; private checkout remains unchanged.
+
+All model calls explicitly use OpenCode Beam Free at max; prices/catalog were
+checked. Rebuilt `cline` successfully and verified bridge startup/config path.
+A fresh instance of the same MCP bridge, with unrelated OpenCode MCP connections
+disabled only for that process, answered BRIDGE_OK. Subsequent agent runs had
+upstream TLS failures or timeouts; no completed independent review is claimed.
+No native/paid fallback. Preserve the pre-existing `.serena/project.yml` edit,
+the older pending handoff entry and `docs/lms/` planning work. No commit/push.
+
+Session evidence: `/tmp/notaeo-classroom-{red,green,coverage}-20261030.log`,
+`/tmp/notaeo-shipping-{backend,packaged,packaged-final,xctest,mobile-export,verifier,verifier-final}-20261030.log`,
+`/tmp/notaeo-shipping-python-audit-fixed-20261030.json` and
+`/tmp/notaeo-shipping-iphone-20261030.png`. The temporary Metro used
+`EXPO_PACKAGER_PROXY_URL=http://localhost:8085` to avoid IPv6/127.0.0.1 bundle
+mismatch. Metro was stopped and the simulator returned to its initial shutdown
+state after the guest-render check; no simulator data was erased. No backend
+was left for account testing and no production endpoint was selected.
+
 ## Next product milestone — connected student workspace (2026-10-22)
 
 Latest owner feedback: both mobile and macOS are bare bones. The desired product
