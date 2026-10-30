@@ -13,11 +13,12 @@ contain retired models; it is not a CLI health check.
 
 For work that benefits from delegation, always prefer the bridge's
 `ask_opencode` tool over native subagents. Unless a task says otherwise, use
-`opencode/glm-5.3-flash-free` at `xhigh` effort, after confirming it exists in
+`opencode/beam-free` at `max` effort (owner update, 2026-10-30), after confirming it exists in
 the actual CLI catalog and has zero input/output/cache prices. The former
 Muse Spark default was retired (verified 2026-10-22). If a model is retired,
 check the current catalog and explicitly name an available zero-cost bridge
-model before using it. No paid fallback. Never silently substitute native
+model before using it. Always pass model and variant explicitly; do not inherit
+the bridge server's potentially stale defaults. No paid fallback. Never silently substitute native
 subagents when the bridge is unavailable.
 
 If any required bridge tool is missing or the CLI check fails, stop before

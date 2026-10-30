@@ -59,10 +59,11 @@ on behalf of the owner.
 
 Run the AGENTS.md bridge startup health check before code work. The default
 delegation policy uses bounded OpenCode workers at
-`opencode/muse-spark-1.3-contributor-free`, `xhigh`, with explicit file ownership.
-The owner's current session instruction overrides delegation: use the six
-existing native Luna identities at low reasoning, with no OpenCode agents;
-respect the concurrency limit. Do not treat a failed bridge check as permission
+`opencode/beam-free`, `max`, with explicit file ownership (owner update,
+2026-10-30). Pass both model and variant explicitly and verify zero prices in
+the actual CLI catalog. This supersedes retired Muse defaults and the older
+native-Luna session routing. Respect the concurrency limit and use no paid or
+native fallback. Do not treat a failed bridge check as permission
 to substitute workers silently. Preserve review
 independence by supplying only the review packet, not the worker's narrative.
 
