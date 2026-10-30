@@ -67,15 +67,17 @@ no release build, device SecureStore/restart or live school connection is claime
 Independent mobile review is pending. The add form was subsequently collapsed
 by default to keep saved coursework visible; the final24 UI cases pass.
 The standard mobile agent then timed out after600seconds with6 tool calls and
-no verdict. A supplied-source review with tools disabled is now running at
-`/tmp/notaeo-mobile-text-review.log`. Native remains approved/committed.
+no verdict. The subsequent supplied-source review with tools disabled also
+timed out after600seconds, with session unknown/events0/steps0/tool_calls0 and
+empty stdout/stderr. Exact result is in `/tmp/notaeo-mobile-text-review.log`.
+Native remains approved/committed; mobile source remains uncommitted.
 
 A final mobile regression exposed notebook-library errors being hidden on the
 Today tab. Both phone scenarios failed first; the common header now shows the
 error and a library retry action, which clears stale errors before reloading.
 All24 interface cases pass afterward, as do196 unit tests, types, the real
 backend lane and both Hermes exports. This final delta is included in the
-pending supplied-source review.
+failed supplied-source review packet. No code finding or approval was returned.
 
 ## Remaining gates
 

@@ -31,7 +31,8 @@ made health checks and the backend review succeed. Global configuration remains
 unchanged. A later native review failed with an upstream TLS error after tool
 activity and no verdict; custom-agent reviews timed out after600s. A smaller
 standard-agent native review APPROVED in `ses_e73f13f8bffeT2wDylgwjeX4hb`;
-separate standard-agent mobile review is now running.
+separate standard-agent mobile review timed out after600s/6tool calls. A final
+supplied-source/tool-disabled review also timed out after600s with no events.
 Never count an errored or timed-out run as approval. Commit only actually
 reviewed changes, preserve `.serena/project.yml` and the older pending LMS docs.
 Mobile checkout has only this task's changes; private checkout stays clean.
@@ -40,9 +41,16 @@ Current goal: obtain mobile review, resolve findings, run the required final
 checks and commit mobile Today; save evidence and create the
 next bounded goal. Do not silently widen this into OAuth, hosted deployment,
 notification delivery, bibliography support or new AI services. Temporary review
-outputs: `/tmp/notaeo-native-standard-retry.log` (approval) and
-`/tmp/notaeo-mobile-standard-retry.log` (pending); validation prefixes
+outputs: `/tmp/notaeo-native-standard-retry.log` (approval),
+`/tmp/notaeo-mobile-standard-retry.log` and `/tmp/notaeo-mobile-text-review.log`
+(both timeouts, no mobile approval); validation prefixes
 `/tmp/notaeo-today-*` and `/tmp/notaeo-mobile-today-*`.
+
+Resume with mobile review using Beam Free/max after bridge/provider execution
+recovers. The mobile candidate's final library-error/retry regression was RED2,
+then all24 UI checks passed; final types196unit/actual-backend/both exports pass.
+No client source is red. Do not repeatedly rerun passing checks unless review
+findings change the code. No native/paid model fallback or unreviewed app commit.
 
 ## Student shipping assessment and goals — 2026-10-30
 
